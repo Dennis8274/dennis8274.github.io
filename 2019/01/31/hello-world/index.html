@@ -648,27 +648,46 @@
 
 
   
-    
-     
-     
-     
-     
-     <link rel="stylesheet" href="https://www.wenjunjiang.win/css/gitment.css">
-     <script src="https://www.wenjunjiang.win/js/gitment.js"></script>
-     
-         <script type="text/javascript">
-             var gitment = new Gitment({
-                 id: document.location.href, 
-                 owner: '',
-                 repo: '',
-                 oauth: {
-                     client_id: '',
-                     client_secret: ''
-                 }});
-             gitment.render('gitment-container');
-         </script>
-     
- 
+    <!-- LOCAL: You can save these files to your site and update links -->
+
+  
+  <script src="https://cdn.jsdelivr.net/gh/theme-next/theme-next-gitment@1/gitmint.browser.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/theme-next/theme-next-gitment@1/default.css">
+<!-- END LOCAL -->
+
+<style>
+#gitment-container a {
+  border-bottom: none;
+}
+
+</style>
+
+<script>
+  function renderGitment() {
+    var gitment = new Gitmint({
+      id: '1548915357453',
+      owner: 'Dennis8274',
+      repo: 'dennis8274.github.io',
+      
+        lang: '' || navigator.language || navigator.systemLanguage || navigator.userLanguage,
+      
+      oauth: {
+      
+      
+        client_secret: 'a64ae46a293e6794b32b945c7094bb94dd623a44',
+      
+        client_id: '02f03563ce7f6cee3418'
+      }
+    });
+    gitment.render('gitment-container');
+  }
+
+  
+    renderGitment();
+  
+</script>
+
   
 
 
