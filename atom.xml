@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>泊客</title>
+  
+  <subtitle>心之所向</subtitle>
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="https://dennis8274.github.io/"/>
+  <updated>2019-02-01T06:27:55.250Z</updated>
+  <id>https://dennis8274.github.io/</id>
+  
+  <author>
+    <name>邓旭峰</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>2018年终总结</title>
+    <link href="https://dennis8274.github.io/2019/01/cjrls3cy40001gg0uqrxzn184/"/>
+    <id>https://dennis8274.github.io/2019/01/cjrls3cy40001gg0uqrxzn184/</id>
+    <published>2019-01-31T06:15:57.453Z</published>
+    <updated>2019-02-01T06:27:55.250Z</updated>
+    
+    <content type="html"><![CDATA[<p align="center"><br><strong>又到年底，然而今年并不打算再写年终总结。</strong><br></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          &lt;p
+        
+      
+    
+    </summary>
+    
+      <category term="生活" scheme="https://dennis8274.github.io/categories/%E7%94%9F%E6%B4%BB/"/>
+    
+    
+      <category term="杂谈" scheme="https://dennis8274.github.io/tags/%E6%9D%82%E8%B0%88/"/>
+    
+  </entry>
+  
+</feed>
