@@ -1,32 +1,23 @@
 language: node_js
-
 cache:
   directories:
-    - node_modules
-
+  - node_modules
 node_js:
-  - "10"
-
+- '10'
 branches:
   only:
   - master
-
 before_install:
-
-- openssl aes-256-cbc -K $encrypted_xxxxxxxxxxxx_key -iv $encrypted_xxxxxxxxxxxx_iv -in .travis/id_rsa.enc -out ~/.ssh/id_rsa -d
-
-- chmod 600 ~/.ssh/id_rsa 
-
+- openssl aes-256-cbc -K $encrypted_823f945d2d6f_key -iv $encrypted_823f945d2d6f_iv
+  -in id_rsa.enc -out ~\/.ssh/id_rsa -d
+- chmod 600 ~/.ssh/id_rsa
 - eval $(ssh-agent)
 - ssh-add ~/.ssh/id_rsa
 - cp .travis/ssh_config ~/.ssh/config
-
 - git config --global user.name 'Dennis8274'
 - git config --global user.email dennisdxf@gmail.com
-
 install:
 - npm install hexo-cli -g
 - npm install
-
 script:
-- npm run deploy  # hexo clean && hexo g -d
+- npm run deploy
