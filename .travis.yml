@@ -15,11 +15,11 @@ before_install:
 - cp .travis/ssh_config ~/.ssh/config
 - git config --global user.name 'Dennis8274'
 - git config --global user.email dennisdxf@gmail.com
-- ll -a
+- ls -a
 - pwd
 
 install:
-- ll -a
+- ls -a
 - pwd
 - npm install hexo-cli -g
 - npm install
