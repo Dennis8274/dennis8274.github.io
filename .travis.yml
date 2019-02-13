@@ -1,9 +1,12 @@
 language: node_js
+
 node_js:
 - '10'
+
 branches:
   only:
   - develop
+
 before_install:
 - openssl aes-256-cbc -K $encrypted_243c0976c43f_key -iv $encrypted_243c0976c43f_iv
   -in .travis/id_rsa.enc -out ~/.ssh/id_rsa -d
@@ -13,10 +16,10 @@ before_install:
 - cp .travis/ssh_config ~/.ssh/config
 - git config --global user.name 'Dennis8274'
 - git config --global user.email dennisdxf@gmail.com
+- npm install hexo -g
 - git clone https://github.com/Dennis8274/dennis8274.github.io.git .deploy_git
 - cd .deploy_git && git checkout master
 - cd ..
-install:
-- npm install hexo -g
+
 script:
 - npm run deploy
