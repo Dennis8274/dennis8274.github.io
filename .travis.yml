@@ -17,9 +17,7 @@ before_install:
 - git config --global user.name 'Dennis8274'
 - git config --global user.email dennisdxf@gmail.com
 - npm install hexo -g
-- git clone https://github.com/Dennis8274/dennis8274.github.io.git .deploy_git
-- cd .deploy_git && git checkout master
-- cd ..
+- git clone https://github.com/Dennis8274/dennis8274.github.io.git .deploy
 
 script:
 - npm run deploy
