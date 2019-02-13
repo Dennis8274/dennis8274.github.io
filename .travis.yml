@@ -18,6 +18,5 @@ before_install:
 - cd ..
 install:
 - npm install hexo -g
-- npm install
 script:
 - npm run deploy
