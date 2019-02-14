@@ -6,7 +6,7 @@
     "version": "3.8.0"
   },
   "scripts": {
-    "deploy": "hexo g -d"
+    "deploy": "hexo clean && hexo g -d"
   },
   "dependencies": {
     "gitment": "0.0.3",
