@@ -559,7 +559,7 @@ gitment:
   count: false # Show comments count in post meta area
   lazy: false # Comments lazy loading with a button
   cleanly: true # Hide 'Powered by ...' on footer, and more
-  language: # Force language, or auto switch by theme
+  language: zh-CN # Force language, or auto switch by theme
   github_user: Dennis8274 # MUST HAVE, Your Github Username
   github_repo: dennis8274.github.io # MUST HAVE, The name of the repo you use to store Gitment comments
   client_id: 02f03563ce7f6cee3418 # MUST HAVE, Github client id for the Gitment
