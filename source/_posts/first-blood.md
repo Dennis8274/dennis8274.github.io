@@ -1,5 +1,6 @@
 ---
 title: 2018年终总结
+date: '2019-01-01 00:00:00 +0800'
 copyright: true
 tags:
   - 杂谈
