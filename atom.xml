@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>泊客</title>
+  
+  <subtitle>心之所向</subtitle>
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="https://blog.dengxf.cn/"/>
+  <updated>2019-02-24T02:23:19.168Z</updated>
+  <id>https://blog.dengxf.cn/</id>
+  
+  <author>
+    <name>邓旭峰</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>QMQ源码分析之delay-server篇【一】</title>
+    <link href="https://blog.dengxf.cn/3159cb59.html"/>
+    <id>https://blog.dengxf.cn/3159cb59.html</id>
+    <published>2019-02-23T09:26:24.000Z</published>
+    <updated>2019-02-24T02:23:19.168Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><blockquote><p>QMQ是一款去哪儿网内部使用多年的mq。不久前(大概1-2年前)已在携程投入生产大规模使用，年前这款mq也开源了出来。关于<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXE=" title="https://github.com/qunarcorp/qmq">QMQ<i class="fa fa-external-link"></i></span>的相关设计文章可以看<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvdHJlZS9tYXN0ZXIvZG9jcy9jbg==" title="https://github.com/qunarcorp/qmq/tree/master/docs/cn">这里<i class="fa fa-external-link"></i></span>。在这里，我假设你已经对QMQ前世今生以及其设计和实现等背景知识已经有了一个较为全面的认识。</p></blockquote><h2 id="我的阅读姿势"><a href="#我的阅读姿势" class="headerlink" title="我的阅读姿势"></a>我的阅读姿势</h2><p>对一款开源产品愈来愈感兴趣，想要了解一款开源产品更多的技术细节的时候，最好的方式自然是去阅读她的源码。那么一个正确阅读开源软件源码的姿势是什么呢？我觉得这完全就像一个相亲过程：</p><ol><li>媒婆介绍相亲对象基本信息。这一定是前提。很多人都忽视了这一个步骤。在这个步骤中，要去了解这款开源软件是用来做什么的？解决了什么问题？如何解决这些问题的？所处地位？其实就是what,why,how,where四个问题。要是在阅读源码前能准备下这四个问题的答案，那么接下来阅读源码的工作将更有效果。</li><li>见面，喝茶，对媒婆所言一探究竟。这个时候我们要去认识下软件的整体结构，例如，包结构，依赖轻重，主要功能是哪些在哪里等。此外还要去验证下”媒婆所言”是否属实，我们要自己操作运行一下，对这个”姑娘”有一个基础认识。</li><li>约会。有以上基础认识之后，就要深入源码一探究竟。针对各功能点(主要是第一个步骤中谈到的解决的什么问题即why)各条线深入下去，最后贯穿起来，形成一个闭环。</li><li>自由发挥。这个时候就看缘分了，对上眼就成了contributor，对不上眼也能多个朋友多条路不是。</li></ol><h2 id="主要功能"><a href="#主要功能" class="headerlink" title="主要功能"></a>主要功能</h2><p>对于delay-server，官方已经有了一些<span class="exturl" data-url="aHR0cHM6Ly9tcC53ZWl4aW4ucXEuY29tL3MvX05XRW1rdTd2UkF1NWNjLW1LRHhLQQ==" title="https://mp.weixin.qq.com/s/_NWEmku7vRAu5cc-mKDxKA">介绍<i class="fa fa-external-link"></i></span>。记住，官方通常是最卖力的那个”媒婆”。qmq-delay-server其实主要做的是转发工作。所谓转发，就是delay-server做的就是个存储和投递的工作。怎么理解，就是qmq-client会对消息进行一个路由，即实时消息投递到实时server，延迟消息往delay-server投递，多说一句，这个路由的功能是由qmq-meta-server提供。投递到delay-server的消息会存下来，到时间之后再进行投递。现在我们知道了<code>存储</code>和<code>投递</code>是delay-server主要的两个功能点。那么我们挨个击破:</p><h4 id="存储"><a href="#存储" class="headerlink" title="存储"></a>存储</h4><p>假如让我们来设计实现一个delay-server，存储部分我们需要解决什么问题？我觉得主要是要解决到期投递的<code>到期</code>问题。我们可以用传统db做，但是这个性能肯定是上不去的。我们也可以用基于LSM树的RocksDB。或者，干脆直接用文件存储。QMQ是用文件存储的。而用文件存储是怎么解决<code>到期</code>问题的呢？delay-server接收到延迟消息，就将消息append到message_log中，然后再通过回放这个message_log得到schedule_log，此外还有一个dispatch _log用于记录投递记录。QMQ还有个跟投递相关的存储设计，即两层HashWheel。第一层位于磁盘上，例如，以一个小时一个刻度一个文件，我们叫delay_message_segment，如延迟时间为2019年02月23日 19:00 至2019年02月23日 20:00为延迟消息将被存储在2019022319。并且这个刻度是可以配置调整的。第二层HashWheel位于内存中。也是以一个时间为刻度，比如500ms，加载进内存中的延迟消息文件会根据延迟时间hash到一个HashWheel中，第二层的wheel涉及更多的是下一小节的<strong>投递</strong>。貌似存储到这里就结束了，然而还有一个问题，目前当投递的时候我们需要将一个delay_message_segment加载进内存中，而假如我们提前一个刻度加载进一个delay_message_segment到内存中的hashwheel，比如在2019年02月23日 18:00加载2019022319这个segment文件，那么一个hashwheel中就会存在两个delay_message_segment，而这个时候所占内存是非常大的，所以这是完全不可接收的。所以，QMQ引入了一个数据结构，叫schedule_index，即消息索引，存储的内容为消息的索引，我们加载到内存的是这个schedule_index，在真正投递的时候再根据索引查到消息体进行投递。</p><h4 id="投递"><a href="#投递" class="headerlink" title="投递"></a>投递</h4><p>解决了存储，那么到期的延迟消息如何投递呢？如在上一小节<strong>存储</strong>中所提到的，内存中的hashwheel会提前一段时间加载delay_schedule_index，这个时间自然也是可以配置的。而在hashwheel中，默认每500ms会tick一次，这个500ms也是可以根据用户需求配置的。而在投递的时候，QMQ根据实时broker进行分组多线程投递，如果某一broker离线不可用，导致投递失败，delay-server会将延迟消息投递在其他<code>存活</code>的实时broker。其实这里对于实时的broker应该有一个关于投递消息权重的，现在delay-server没有考虑到这一点，不过我看已经有一个pr解决了这个问题，只是官方还没有时间看这个问题。除此之外，QMQ还考虑到了要是当前延迟消息所属的delay_segment已经加载到内存中的hashwheel了，这个时候消息应该是直接投递或也应加载到hashwheel中的。这里需要考虑的情况还是比较多的，比如考虑delay_segment正在加载、已经加载、加载完成等情况，对于这种情况，QMQ用了两个cursor来表示hashwheel加载到哪个delay_segment以及加载到对应segment的什么offset了，这里还是挺复杂的，这里的代码逻辑在<code>WheelTickManager</code>这个类。</p><hr><p>我们先来看一看整体结构<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550935854945-5930d1df-0316-4e07-8d51-4f794093200f.png#align=left&amp;display=inline&amp;height=746&amp;linkTarget=_blank&amp;name=image.png&amp;originHeight=746&amp;originWidth=1366&amp;size=265433&amp;status=done&amp;width=1366" alt="image.png"><br>以功能划分的包结构，算是比较清晰。cleaner是日志清理工作相关，receiver是接收消息相关，sender是投递相关，store是存储相关，sync是同步备份相关，wheel则是hashwheel相关。</p><p><strong>关于QMQ源码阅读前的准备工作就先做到这里，下一篇我们就深入源码分析以上提到的各个细节。</strong></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          &lt;h3 id=&quot;前言&quot;&gt;&lt;a href=&quot;#前言&quot; class=&quot;headerlink&quot;
+        
+      
+    
+    </summary>
+    
+      <category term="技术分享" scheme="https://blog.dengxf.cn/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/"/>
+    
+    
+      <category term="MQ" scheme="https://blog.dengxf.cn/tags/MQ/"/>
+    
+      <category term="源码分析" scheme="https://blog.dengxf.cn/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>2018年终总结</title>
+    <link href="https://blog.dengxf.cn/59ca7e41.html"/>
+    <id>https://blog.dengxf.cn/59ca7e41.html</id>
+    <published>2019-02-18T09:27:06.923Z</published>
+    <updated>2019-02-18T09:27:06.923Z</updated>
+    
+    <content type="html"><![CDATA[<p align="center"><br><strong>又到年底，然而今年并不打算再写年终总结。</strong><br></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          &lt;p
+        
+      
+    
+    </summary>
+    
+      <category term="生活" scheme="https://blog.dengxf.cn/categories/%E7%94%9F%E6%B4%BB/"/>
+    
+    
+      <category term="杂谈" scheme="https://blog.dengxf.cn/tags/%E6%9D%82%E8%B0%88/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>如何科学上网？</title>
+    <link href="https://blog.dengxf.cn/8c46c59b.html"/>
+    <id>https://blog.dengxf.cn/8c46c59b.html</id>
+    <published>2019-02-15T02:54:09.000Z</published>
+    <updated>2019-02-24T02:23:19.176Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote><p>为了给我们提供一个<code>安全</code>的网络环境，所以先驱前辈们建立了一堵墙。总有些<code>调皮</code> <code>好奇</code>的孩子想要翻过墙去看看墙那边的世界。但是存在风险，需谨慎。</p></blockquote><p><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550203371840-7da7ce17-8331-4d90-9a69-0e2e66e5d844.png#align=left&amp;display=inline&amp;height=368&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215120239.png&amp;originHeight=948&amp;originWidth=1920&amp;size=59975&amp;width=746" alt="微信图片_20190215120239.png"><br>共有下面两种方式供选择：</p><h2 id="利用VPN"><a href="#利用VPN" class="headerlink" title="利用VPN"></a>利用VPN</h2><h4 id="免费"><a href="#免费" class="headerlink" title="免费"></a>免费</h4><p>免费的vpn有很多，但是速度、稳定性和流量限制是基本不能满足需要的，所以就不推荐了。</p><h4 id="收费"><a href="#收费" class="headerlink" title="收费"></a>收费</h4><p>收费的vpn一般都在每月10元左右，并且足够稳定。另外，建议大家选择国外的vpn，国内的vpn产商说不定哪天就跑路什么的。在这里，推荐ExpressVPN和PureVPN。前者比较知名，也比较<code>稳健</code>，价格大概在每月$7+；后者也相对比较好用，每月大概在$3+，说是有中国用户的专线。<br>详情可<span class="exturl" data-url="aHR0cHM6Ly93d3cudnBuZGFkYS5jb20vYmVzdC12cG5zLWZvci1jaGluYS1jbi8=" title="https://www.vpndada.com/best-vpns-for-china-cn/">参考<i class="fa fa-external-link"></i></span>。</p><h2 id="自建代理"><a href="#自建代理" class="headerlink" title="自建代理"></a>自建代理</h2><p>喜欢掌握主动权的我，倾向于采用自建代理的方案。综合来看自建代理都是最实惠，最可控的方案。</p><h4 id="购买VPS"><a href="#购买VPS" class="headerlink" title="购买VPS"></a>购买VPS</h4><p>目前VPS产商有两家做的最大，分别是BandwagonHost(搬瓦工)和Vultr。有篇<span class="exturl" data-url="aHR0cHM6Ly9mbHl6eWJsb2cuY29tL2JhbmR3YWdvbmhvc3QtdnVsdHItY29tcGFyaXNvbi8=" title="https://flyzyblog.com/bandwagonhost-vultr-comparison/">文章<i class="fa fa-external-link"></i></span>对比了这两家厂商的产品。<br>购买VPS都是有优惠的，<span class="exturl" data-url="aHR0cDovL2JhbndhZ29uZy5jbi8=" title="http://banwagong.cn/">搬瓦工<i class="fa fa-external-link"></i></span> <span class="exturl" data-url="aHR0cHM6Ly93d3cudnVsdHJ5aHcuY24v" title="https://www.vultryhw.cn/">Vultr<i class="fa fa-external-link"></i></span>。<br>因为搬瓦工比较老牌，老而弥坚，所以我选择的是它。如果你不喜欢老而弥<code>坚</code>的东西，选择了Vultr，那么请移步看<span class="exturl" data-url="aHR0cHM6Ly93d3cuc3RhY2tjYy5jb20vMjAxOC8xMS8wOC9zc3ItdnBzLw==" title="https://www.stackcc.com/2018/11/08/ssr-vps/">搭建SSR<i class="fa fa-external-link"></i></span>。购买时注意是不是支持中国专线，如果没注意，那么购买成功之后也是可以更改线路的。购买完成，你会受到一封邮件，里边有ip port password等信息，连接上vps，安装完一些基础工具(wget等)，就可以开干了。</p><h4 id="搭建代理"><a href="#搭建代理" class="headerlink" title="搭建代理"></a>搭建代理</h4><p>现在用的最多的就是<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NoYWRvd3NvY2tz" title="https://github.com/shadowsocks">shadowsocks<i class="fa fa-external-link"></i></span>，以及其衍生版本<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NoYWRvd3NvY2tzci1iYWNrdXA=" title="https://github.com/shadowsocksr-backup">shadowsocks r<i class="fa fa-external-link"></i></span>。我选择的是shadowsockr。这里有个<span class="exturl" data-url="aHR0cHM6Ly9zc3IudG9vbHMv" title="https://ssr.tools/">ssr<i class="fa fa-external-link"></i></span>工具网站，客户端，一键安装脚本在这里都能找到。</p><ol><li>ssh连接上vps</li><li>依次运行下边三条命令：<br></li></ol><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget --no-check-certificate -O shadowsocks-all.sh https://raw.githubusercontent.com/teddysun/shadowsocks_install/master/shadowsocks-all.sh</span><br></pre></td></tr></table></figure><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">chmod +x shadowsocks-all.sh</span><br></pre></td></tr></table></figure><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./shadowsocks-all.sh 2&gt;&amp;1 | tee shadowsocks-all.log</span><br></pre></td></tr></table></figure><p><br><br></p><ol><li>接下来按照提示，选择参数安装即可，步骤大概为：<ol><li>选择版本，建议ShadowsocksR</li><li>设置SSR密码</li><li>选择SSR服务器端口</li><li>选择加密方式<br><img src="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1550223183058-b27b72ac-027a-4550-8273-f8516e1c1f1b.jpeg#align=left&amp;display=inline&amp;height=290&amp;linkTarget=_blank&amp;name=2018-07-12_154549.jpg&amp;originHeight=290&amp;originWidth=446&amp;size=23089&amp;width=446" alt="2018-07-12_154549.jpg"><br>如这里选择chacha20，输入对应序号12即可。</li><li>选择协议<br><img src="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1550223232353-b1c4eea1-8116-4bab-b3ae-366e0c83982d.jpeg#align=left&amp;display=inline&amp;height=230&amp;linkTarget=_blank&amp;name=2018-07-12_154640.jpg&amp;originHeight=230&amp;originWidth=420&amp;size=23545&amp;width=420" alt="2018-07-12_154640.jpg"><br>如这里选择auth_aes128_md5，输入对应序号5即可</li><li>选择混淆方式<br><img src="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1550223307214-0422bcaf-06ae-4139-b639-8958cb161b0a.jpeg#align=left&amp;display=inline&amp;height=182&amp;linkTarget=_blank&amp;name=2018-07-12_154714.jpg&amp;originHeight=182&amp;originWidth=392&amp;size=18147&amp;width=392" alt="2018-07-12_154714.jpg"><br>如这里选择http_simple，输入对应序号2即可</li><li>参数设置完成，任意键开始安装，静静等待。</li><li><img src="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1550223377785-43bafaa1-6fd7-4030-a2a6-030421a377ae.jpeg#align=left&amp;display=inline&amp;height=325&amp;linkTarget=_blank&amp;name=2018-07-12_155328.jpg&amp;originHeight=325&amp;originWidth=644&amp;size=39392&amp;width=644" alt="2018-07-12_155328.jpg"><br>安装完成，你会看到以上信息，记录下来，待会儿会用到。你也可以在下图文件夹下的config.json看到。<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550223556002-311135cd-fbdb-4c3c-9bf7-1d7f02b25dc5.png#align=left&amp;display=inline&amp;height=272&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215173855.png&amp;originHeight=272&amp;originWidth=556&amp;size=4809&amp;width=556" alt="微信图片_20190215173855.png"><br><h4 id="客户端安装"><a href="#客户端安装" class="headerlink" title="客户端安装"></a>客户端安装</h4><span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NoYWRvd3NvY2tzcnIvc2hhZG93c29ja3NyLWNzaGFycC9yZWxlYXNlcw==" title="https://github.com/shadowsocksrr/shadowsocksr-csharp/releases">windows<i class="fa fa-external-link"></i></span> 下载<br><span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3Fpbnl1aGFuZy9TaGFkb3dzb2Nrc1gtTkctUi9yZWxlYXNlcw==" title="https://github.com/qinyuhang/ShadowsocksX-NG-R/releases">mac<i class="fa fa-external-link"></i></span>下载<br><span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NoYWRvd3NvY2tzcnIvc2hhZG93c29ja3NyLWFuZHJvaWQvcmVsZWFzZXM=" title="https://github.com/shadowsocksrr/shadowsocksr-android/releases">andriod<i class="fa fa-external-link"></i></span>下载 或者在应用商城看一下有没有shadowsocks-r(或者ssr)客户端下载<br>ios 免费的App可以用Potatso Lite，不过应该需要<span class="exturl" data-url="aHR0cHM6Ly9zc3IudG9vbHMvMTA0" title="https://ssr.tools/104">申请<i class="fa fa-external-link"></i></span>一下美国AppleID<br>安装完毕，输入安装完毕让你记下的那些信息(在/etc/shadowsocks-r/config.json，或者在刚才安装的目录下找到shadowsocks-all.log文件里也有相关信息)。另外，ssr客户端支持二维码扫描，剪贴板导入等方式，很方便，如下图：<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550225021512-044ebcee-5e88-4073-b67d-3630d915b71b.png#align=left&amp;display=inline&amp;height=106&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215180301.png&amp;originHeight=106&amp;originWidth=238&amp;size=19155&amp;width=238" alt="微信图片_20190215180301.png"><br>安卓上效果如下：<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550225391948-1810ccd1-1ab2-412f-99a9-0fc3c3dcabb5.png#align=left&amp;display=inline&amp;height=846&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215180933.png&amp;originHeight=846&amp;originWidth=531&amp;size=565850&amp;width=531" alt="微信图片_20190215180933.png"><br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550225391033-e95f0c13-f1be-4b8e-8b21-686736e93f04.png#align=left&amp;display=inline&amp;height=840&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215180822.png&amp;originHeight=840&amp;originWidth=423&amp;size=164845&amp;width=423" alt="微信图片_20190215180822.png"><br>好了，安卓和ios设备现在基本都能上网了。但是pc端还需要一个东西，即chrome的一个插件，<span class="exturl" data-url="aHR0cHM6Ly93d3cuc3dpdGNoeW9tZWdhLmNvbS8=" title="https://www.switchyomega.com/">swithy omega<i class="fa fa-external-link"></i></span>。下载插件添加到chrome完毕，配置如下图：<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550225813408-a0996f52-f174-414e-86b0-4587373541ee.png#align=left&amp;display=inline&amp;height=349&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215181638.png&amp;originHeight=899&amp;originWidth=1920&amp;size=74173&amp;width=746" alt="微信图片_20190215181638.png"><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550225813437-708b1d32-c8d5-4df9-99ac-636e21e35f9b.png#align=left&amp;display=inline&amp;height=349&amp;linkTarget=_blank&amp;name=%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190215181642.png&amp;originHeight=899&amp;originWidth=1920&amp;size=41237&amp;width=746" alt="微信图片_20190215181642.png"></li></ol></li></ol><p>其中的规则列表网址：<span class="exturl" data-url="aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2dmd2xpc3QvZ2Z3bGlzdC9tYXN0ZXIvZ2Z3bGlzdC50eHQ=" title="https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt">https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt<i class="fa fa-external-link"></i></span> 详情可以参考<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2dmd2xpc3QvZ2Z3bGlzdA==" title="https://github.com/gfwlist/gfwlist">gfwlist<i class="fa fa-external-link"></i></span></p><p>就是这些，你可以科学上网了。</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        
+        
+          &lt;blockquote&gt;
+&lt;p&gt;为了给我们提供一个&lt;code&gt;安全&lt;/code&gt;的网络环境，所以先驱前辈们建立了一堵墙。总有些&lt;code&gt;调皮&lt;/code&gt;
+        
+      
+    
+    </summary>
+    
+      <category term="工具" scheme="https://blog.dengxf.cn/categories/%E5%B7%A5%E5%85%B7/"/>
+    
+    
+      <category term="科学上网" scheme="https://blog.dengxf.cn/tags/%E7%A7%91%E5%AD%A6%E4%B8%8A%E7%BD%91/"/>
+    
+  </entry>
+  
+</feed>

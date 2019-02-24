@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title><![CDATA[QMQ源码分析之delay-server篇【一】]]></title>
+    <url>%2F3159cb59.html</url>
+    <content type="text"><![CDATA[前言 QMQ是一款去哪儿网内部使用多年的mq。不久前(大概1-2年前)已在携程投入生产大规模使用，年前这款mq也开源了出来。关于QMQ的相关设计文章可以看这里。在这里，我假设你已经对QMQ前世今生以及其设计和实现等背景知识已经有了一个较为全面的认识。 我的阅读姿势对一款开源产品愈来愈感兴趣，想要了解一款开源产品更多的技术细节的时候，最好的方式自然是去阅读她的源码。那么一个正确阅读开源软件源码的姿势是什么呢？我觉得这完全就像一个相亲过程： 媒婆介绍相亲对象基本信息。这一定是前提。很多人都忽视了这一个步骤。在这个步骤中，要去了解这款开源软件是用来做什么的？解决了什么问题？如何解决这些问题的？所处地位？其实就是what,why,how,where四个问题。要是在阅读源码前能准备下这四个问题的答案，那么接下来阅读源码的工作将更有效果。 见面，喝茶，对媒婆所言一探究竟。这个时候我们要去认识下软件的整体结构，例如，包结构，依赖轻重，主要功能是哪些在哪里等。此外还要去验证下”媒婆所言”是否属实，我们要自己操作运行一下，对这个”姑娘”有一个基础认识。 约会。有以上基础认识之后，就要深入源码一探究竟。针对各功能点(主要是第一个步骤中谈到的解决的什么问题即why)各条线深入下去，最后贯穿起来，形成一个闭环。 自由发挥。这个时候就看缘分了，对上眼就成了contributor，对不上眼也能多个朋友多条路不是。 主要功能对于delay-server，官方已经有了一些介绍。记住，官方通常是最卖力的那个”媒婆”。qmq-delay-server其实主要做的是转发工作。所谓转发，就是delay-server做的就是个存储和投递的工作。怎么理解，就是qmq-client会对消息进行一个路由，即实时消息投递到实时server，延迟消息往delay-server投递，多说一句，这个路由的功能是由qmq-meta-server提供。投递到delay-server的消息会存下来，到时间之后再进行投递。现在我们知道了存储和投递是delay-server主要的两个功能点。那么我们挨个击破: 存储假如让我们来设计实现一个delay-server，存储部分我们需要解决什么问题？我觉得主要是要解决到期投递的到期问题。我们可以用传统db做，但是这个性能肯定是上不去的。我们也可以用基于LSM树的RocksDB。或者，干脆直接用文件存储。QMQ是用文件存储的。而用文件存储是怎么解决到期问题的呢？delay-server接收到延迟消息，就将消息append到message_log中，然后再通过回放这个message_log得到schedule_log，此外还有一个dispatch _log用于记录投递记录。QMQ还有个跟投递相关的存储设计，即两层HashWheel。第一层位于磁盘上，例如，以一个小时一个刻度一个文件，我们叫delay_message_segment，如延迟时间为2019年02月23日 19:00 至2019年02月23日 20:00为延迟消息将被存储在2019022319。并且这个刻度是可以配置调整的。第二层HashWheel位于内存中。也是以一个时间为刻度，比如500ms，加载进内存中的延迟消息文件会根据延迟时间hash到一个HashWheel中，第二层的wheel涉及更多的是下一小节的投递。貌似存储到这里就结束了，然而还有一个问题，目前当投递的时候我们需要将一个delay_message_segment加载进内存中，而假如我们提前一个刻度加载进一个delay_message_segment到内存中的hashwheel，比如在2019年02月23日 18:00加载2019022319这个segment文件，那么一个hashwheel中就会存在两个delay_message_segment，而这个时候所占内存是非常大的，所以这是完全不可接收的。所以，QMQ引入了一个数据结构，叫schedule_index，即消息索引，存储的内容为消息的索引，我们加载到内存的是这个schedule_index，在真正投递的时候再根据索引查到消息体进行投递。 投递解决了存储，那么到期的延迟消息如何投递呢？如在上一小节存储中所提到的，内存中的hashwheel会提前一段时间加载delay_schedule_index，这个时间自然也是可以配置的。而在hashwheel中，默认每500ms会tick一次，这个500ms也是可以根据用户需求配置的。而在投递的时候，QMQ根据实时broker进行分组多线程投递，如果某一broker离线不可用，导致投递失败，delay-server会将延迟消息投递在其他存活的实时broker。其实这里对于实时的broker应该有一个关于投递消息权重的，现在delay-server没有考虑到这一点，不过我看已经有一个pr解决了这个问题，只是官方还没有时间看这个问题。除此之外，QMQ还考虑到了要是当前延迟消息所属的delay_segment已经加载到内存中的hashwheel了，这个时候消息应该是直接投递或也应加载到hashwheel中的。这里需要考虑的情况还是比较多的，比如考虑delay_segment正在加载、已经加载、加载完成等情况，对于这种情况，QMQ用了两个cursor来表示hashwheel加载到哪个delay_segment以及加载到对应segment的什么offset了，这里还是挺复杂的，这里的代码逻辑在WheelTickManager这个类。 我们先来看一看整体结构以功能划分的包结构，算是比较清晰。cleaner是日志清理工作相关，receiver是接收消息相关，sender是投递相关，store是存储相关，sync是同步备份相关，wheel则是hashwheel相关。 关于QMQ源码阅读前的准备工作就先做到这里，下一篇我们就深入源码分析以上提到的各个细节。]]></content>
+      <categories>
+        <category>技术分享</category>
+      </categories>
+      <tags>
+        <tag>MQ</tag>
+        <tag>源码分析</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[2018年终总结]]></title>
+    <url>%2F59ca7e41.html</url>
+    <content type="text"><![CDATA[又到年底，然而今年并不打算再写年终总结。]]></content>
+      <categories>
+        <category>生活</category>
+      </categories>
+      <tags>
+        <tag>杂谈</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[如何科学上网？]]></title>
+    <url>%2F8c46c59b.html</url>
+    <content type="text"><![CDATA[为了给我们提供一个安全的网络环境，所以先驱前辈们建立了一堵墙。总有些调皮 好奇的孩子想要翻过墙去看看墙那边的世界。但是存在风险，需谨慎。 共有下面两种方式供选择： 利用VPN免费免费的vpn有很多，但是速度、稳定性和流量限制是基本不能满足需要的，所以就不推荐了。 收费收费的vpn一般都在每月10元左右，并且足够稳定。另外，建议大家选择国外的vpn，国内的vpn产商说不定哪天就跑路什么的。在这里，推荐ExpressVPN和PureVPN。前者比较知名，也比较稳健，价格大概在每月$7+；后者也相对比较好用，每月大概在$3+，说是有中国用户的专线。详情可参考。 自建代理喜欢掌握主动权的我，倾向于采用自建代理的方案。综合来看自建代理都是最实惠，最可控的方案。 购买VPS目前VPS产商有两家做的最大，分别是BandwagonHost(搬瓦工)和Vultr。有篇文章对比了这两家厂商的产品。购买VPS都是有优惠的，搬瓦工 Vultr。因为搬瓦工比较老牌，老而弥坚，所以我选择的是它。如果你不喜欢老而弥坚的东西，选择了Vultr，那么请移步看搭建SSR。购买时注意是不是支持中国专线，如果没注意，那么购买成功之后也是可以更改线路的。购买完成，你会受到一封邮件，里边有ip port password等信息，连接上vps，安装完一些基础工具(wget等)，就可以开干了。 搭建代理现在用的最多的就是shadowsocks，以及其衍生版本shadowsocks r。我选择的是shadowsockr。这里有个ssr工具网站，客户端，一键安装脚本在这里都能找到。 ssh连接上vps 依次运行下边三条命令： 1wget --no-check-certificate -O shadowsocks-all.sh https://raw.githubusercontent.com/teddysun/shadowsocks_install/master/shadowsocks-all.sh 1chmod +x shadowsocks-all.sh 1./shadowsocks-all.sh 2&gt;&amp;1 | tee shadowsocks-all.log 接下来按照提示，选择参数安装即可，步骤大概为： 选择版本，建议ShadowsocksR 设置SSR密码 选择SSR服务器端口 选择加密方式如这里选择chacha20，输入对应序号12即可。 选择协议如这里选择auth_aes128_md5，输入对应序号5即可 选择混淆方式如这里选择http_simple，输入对应序号2即可 参数设置完成，任意键开始安装，静静等待。 安装完成，你会看到以上信息，记录下来，待会儿会用到。你也可以在下图文件夹下的config.json看到。客户端安装windows 下载mac下载andriod下载 或者在应用商城看一下有没有shadowsocks-r(或者ssr)客户端下载ios 免费的App可以用Potatso Lite，不过应该需要申请一下美国AppleID安装完毕，输入安装完毕让你记下的那些信息(在/etc/shadowsocks-r/config.json，或者在刚才安装的目录下找到shadowsocks-all.log文件里也有相关信息)。另外，ssr客户端支持二维码扫描，剪贴板导入等方式，很方便，如下图：安卓上效果如下：好了，安卓和ios设备现在基本都能上网了。但是pc端还需要一个东西，即chrome的一个插件，swithy omega。下载插件添加到chrome完毕，配置如下图： 其中的规则列表网址：https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt 详情可以参考gfwlist 就是这些，你可以科学上网了。]]></content>
+      <categories>
+        <category>工具</category>
+      </categories>
+      <tags>
+        <tag>科学上网</tag>
+      </tags>
+  </entry>
+</search>
