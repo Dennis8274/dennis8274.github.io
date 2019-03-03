@@ -114,7 +114,7 @@
 
 
   <meta name="description" content="前言 本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。   整体结构要了解delay-server源码的一个整体结构，需要我们跟着源码，从初始化开始简单先过一遍。重试化的工作都在startup这个包里，而这个包只有一个ServerWrapper类。结合上一篇的内容，通过这个类就基本能看到dela">
-<meta name="keywords" content="技术分享">
+<meta name="keywords" content="MQ,源码分析">
 <meta property="og:type" content="article">
 <meta property="og:title" content="QMQ源码分析之delay-server篇【二】">
 <meta property="og:url" content="https://blog.dengxf.cn/14f2781.html">
@@ -123,7 +123,7 @@
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1551520273789-e28ea7fb-b86e-4c50-ba21-66bbf9a2f123.png#align=left&display=inline&height=668&name=image.png&originHeight=668&originWidth=1207&size=86215&status=done&width=1207">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1551598452729-dfd480c5-fa43-4b60-b81a-221e3950acb1.png#align=left&display=inline&height=615&name=image.png&originHeight=615&originWidth=1141&size=114348&status=done&width=1141">
-<meta property="og:updated_time" content="2019-03-03T08:17:26.754Z">
+<meta property="og:updated_time" content="2019-03-03T08:29:30.163Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="QMQ源码分析之delay-server篇【二】">
 <meta name="twitter:description" content="前言 本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。   整体结构要了解delay-server源码的一个整体结构，需要我们跟着源码，从初始化开始简单先过一遍。重试化的工作都在startup这个包里，而这个包只有一个ServerWrapper类。结合上一篇的内容，通过这个类就基本能看到dela">
@@ -455,6 +455,24 @@
           </span>
 
           
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/技术分享/" itemprop="url" rel="index"><span itemprop="name">技术分享</span></a></span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -491,7 +509,7 @@
 
       
         <p><a name="df368884"></a></p>
-<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><blockquote>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><blockquote>
 <p>本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。</p>
 </blockquote>
 <p><a name="74fc4edb"></a></p>
@@ -513,7 +531,7 @@
 <p>留意locateSegment这个方法，它是根据延迟时间定位DelaySegment，比如如果延迟时间是2019-03-03 16:00:00，那么就会定位到201903031600这个DelaySegment（注：这里贴的代码不是最新的，最新的是DelaySegment的刻度是可以配置，到分钟级别）。同样，具体动作也是appender做的，如下:</p>
 <figure class="highlight processing"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">    <span class="keyword">public</span> AppendRecordResult&lt;ScheduleSetSequence&gt; appendLog(LogRecord <span class="built_in">log</span>) &#123;</span><br><span class="line">        workingBuffer.<span class="built_in">clear</span>();</span><br><span class="line">        workingBuffer.flip();</span><br><span class="line">        <span class="keyword">final</span> <span class="built_in">byte</span>[] subjectBytes = <span class="built_in">log</span>.getSubject().getBytes(StandardCharsets.UTF_8);</span><br><span class="line">        <span class="keyword">final</span> <span class="built_in">byte</span>[] messageIdBytes = <span class="built_in">log</span>.getMessageId().getBytes(StandardCharsets.UTF_8);</span><br><span class="line">        <span class="built_in">int</span> recordSize = getRecordSize(<span class="built_in">log</span>, subjectBytes.length, messageIdBytes.length);</span><br><span class="line">        workingBuffer.limit(recordSize);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">long</span> scheduleTime = <span class="built_in">log</span>.getScheduleTime();</span><br><span class="line">        <span class="keyword">long</span> sequence = <span class="built_in">log</span>.getSequence();</span><br><span class="line">        workingBuffer.putLong(scheduleTime);</span><br><span class="line">        <span class="comment">// message_log中的sequence</span></span><br><span class="line">        workingBuffer.putLong(sequence);</span><br><span class="line">        workingBuffer.putInt(<span class="built_in">log</span>.getPayloadSize());</span><br><span class="line">        workingBuffer.putInt(messageIdBytes.length);</span><br><span class="line">        workingBuffer.put(messageIdBytes);</span><br><span class="line">        workingBuffer.putInt(subjectBytes.length);</span><br><span class="line">        workingBuffer.put(subjectBytes);</span><br><span class="line">        workingBuffer.put(<span class="built_in">log</span>.getRecord());</span><br><span class="line">        workingBuffer.flip();</span><br><span class="line">        ScheduleSetSequence record = <span class="keyword">new</span> ScheduleSetSequence(scheduleTime, sequence);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> AppendRecordResult&lt;&gt;(AppendMessageStatus.SUCCESS, <span class="number">0</span>, recordSize, workingBuffer, record);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
 <p>这里也能看到schedule_log的消息格式。</p>
-<p><strong>发现就写了个存储篇幅就已经挺大了，那么关于投递就开个下一篇吧。</strong></p>
+<p><strong>发现就写了个存储篇幅就已经挺大了，投递涉及到的内容可能更多，那么关于投递就开个下一篇吧。</strong></p>
 
       
     </div>
@@ -548,6 +566,14 @@
     
 
     <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/MQ/" rel="tag"># MQ</a>
+          
+            <a href="/tags/源码分析/" rel="tag"># 源码分析</a>
+          
+        </div>
       
 
       
@@ -754,7 +780,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#整体结构"><span class="nav-number">2.</span> <span class="nav-text">整体结构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#存储"><span class="nav-number">3.</span> <span class="nav-text">存储</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#message-log"><span class="nav-number">3.1.</span> <span class="nav-text">message_log</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#schedule-log"><span class="nav-number">3.2.</span> <span class="nav-text">schedule_log</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li></ol><li class="nav-item nav-level-1"><a class="nav-link" href="#整体结构"><span class="nav-number"></span> <span class="nav-text">整体结构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#存储"><span class="nav-number"></span> <span class="nav-text">存储</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#message-log"><span class="nav-number">1.</span> <span class="nav-text">message_log</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#schedule-log"><span class="nav-number">2.</span> <span class="nav-text">schedule_log</span></a></li></ol></li></div>
             
 
           </div>
