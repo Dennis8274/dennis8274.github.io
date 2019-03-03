@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+  
+  
+    
+      
+    
+    
+      
+    
+  <script src="//cdn.bootcss.com/pace/1.0.2/pace.min.js"></script>
+  <link rel="stylesheet" href="//cdn.bootcss.com/pace/1.0.2/themes/blue/pace-theme-flash.min.css">
+
+
+
+
+
+
+
+  <meta name="google-site-verification" content="nZuxLdmlM5fb35MBllAK9Fwx_04gKAp_E8qkkXSabwA">
+
+
+
+
+
+
+
+  <meta name="baidu-site-verification" content="5ztlSKyYhT">
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<link rel="stylesheet" href="/css/main.css?v=6.7.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon .png?v=6.7.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=6.7.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=6.7.0">
+
+
+  <link rel="mask-icon" href="/images/dxf.png?v=6.7.0" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '6.7.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="前言 本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。   整体结构要了解delay-server源码的一个整体结构，需要我们跟着源码，从初始化开始简单先过一遍。重试化的工作都在startup这个包里，而这个包只有一个ServerWrapper类。结合上一篇的内容，通过这个类就基本能看到dela">
+<meta name="keywords" content="技术分享">
+<meta property="og:type" content="article">
+<meta property="og:title" content="QMQ源码分析之delay-server篇【二】">
+<meta property="og:url" content="https://blog.dengxf.cn/14f2781.html">
+<meta property="og:site_name" content="泊客">
+<meta property="og:description" content="前言 本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。   整体结构要了解delay-server源码的一个整体结构，需要我们跟着源码，从初始化开始简单先过一遍。重试化的工作都在startup这个包里，而这个包只有一个ServerWrapper类。结合上一篇的内容，通过这个类就基本能看到dela">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1551520273789-e28ea7fb-b86e-4c50-ba21-66bbf9a2f123.png#align=left&display=inline&height=668&name=image.png&originHeight=668&originWidth=1207&size=86215&status=done&width=1207">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1551598452729-dfd480c5-fa43-4b60-b81a-221e3950acb1.png#align=left&display=inline&height=615&name=image.png&originHeight=615&originWidth=1141&size=114348&status=done&width=1141">
+<meta property="og:updated_time" content="2019-03-03T08:17:26.754Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="QMQ源码分析之delay-server篇【二】">
+<meta name="twitter:description" content="前言 本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。   整体结构要了解delay-server源码的一个整体结构，需要我们跟着源码，从初始化开始简单先过一遍。重试化的工作都在startup这个包里，而这个包只有一个ServerWrapper类。结合上一篇的内容，通过这个类就基本能看到dela">
+<meta name="twitter:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1551520273789-e28ea7fb-b86e-4c50-ba21-66bbf9a2f123.png#align=left&display=inline&height=668&name=image.png&originHeight=668&originWidth=1207&size=86215&status=done&width=1207">
+
+
+
+  <link rel="alternate" href="/atom.xml" title="泊客" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="https://blog.dengxf.cn/14f2781.html">
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>QMQ源码分析之delay-server篇【二】 | 泊客</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">泊客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">心之所向</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签<span class="badge">4</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类<span class="badge">3</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">4</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://blog.dengxf.cn/14f2781.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="邓旭峰">
+      <meta itemprop="description" content="团结友爱互助">
+      <meta itemprop="image" content="/images/dxf.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="泊客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">QMQ源码分析之delay-server篇【二】
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-02 09:35:59" itemprop="dateCreated datePublished" datetime="2019-03-02T09:35:59+08:00">2019-03-02</time>
+            
+
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><a name="df368884"></a></p>
+<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><blockquote>
+<p>本来是固定时间周六更博，但是昨天失恋了，心情不好，晚了一天。那么上一篇我们梳理了下QMQ延迟消息的主要功能，这一篇在此基础上，对照着功能分析一下源码。</p>
+</blockquote>
+<p><a name="74fc4edb"></a></p>
+<h1 id="整体结构"><a href="#整体结构" class="headerlink" title="整体结构"></a>整体结构</h1><p>要了解delay-server源码的一个整体结构，需要我们跟着源码，从初始化开始简单先过一遍。重试化的工作都在startup这个包里，而这个包只有一个ServerWrapper类。<img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1551520273789-e28ea7fb-b86e-4c50-ba21-66bbf9a2f123.png#align=left&amp;display=inline&amp;height=668&amp;name=image.png&amp;originHeight=668&amp;originWidth=1207&amp;size=86215&amp;status=done&amp;width=1207" alt="image.png"><br>结合上一篇的内容，通过这个类就基本能看到delay的一个源码结构。delay-server基于netty，init方法完成初始化工作（端口默认为20801、心跳、wheel等），register方法是向meta-server发起请求，获取自己自己的<code>角色</code>为<code>delay</code>，并开始和meta-server的心跳。startServer方法是开始HashWheel的转动，从上次结束的位置继续message_log的回放，开启netty server。另外在做准备工作时知道QMQ是基于一主一从一备的方式，关于这个sync方法，是开启监听一个端口回应<code>同步拉取</code>动作，如果是从节点还要开始向主节点发起<code>同步拉取</code>动作。当这一切都完成了，那么online方法就执行，表示delay开始上线提供服务了。总结一下两个要点，QMQ是基于netty进行通信，并且采用一主一从一备的方式。<br><a name="a39cf1ca"></a></p>
+<h1 id="存储"><a href="#存储" class="headerlink" title="存储"></a>存储</h1><p>关于存储在之前我们也讨论了，delay-server接收到延迟消息，会顺序append到message_log，之后再对message_log进行回放，以生成schedule_log。所以关于存储我们需要关注两个东西，一个是message_log的存储，另一个是schedule_log的生成。<br><a name="message_log"></a></p>
+<h2 id="message-log"><a href="#message-log" class="headerlink" title="message_log"></a>message_log</h2><p>其实message_log的生成很简单，就是顺序append。主要逻辑在<code>qunar.tc.qmq.delay.receiver.Receiver</code>这个类里，大致流程就是关于QMQ自定义协议的一个反序列化，然后再对序列化的单个消息进行存储。如图：<img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1551598452729-dfd480c5-fa43-4b60-b81a-221e3950acb1.png#align=left&amp;display=inline&amp;height=615&amp;name=image.png&amp;originHeight=615&amp;originWidth=1141&amp;size=114348&amp;status=done&amp;width=1141" alt="image.png"><br>主要逻辑在途中标红方法<code>doInvoke</code>中。</p>
+<figure class="highlight aspectj"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">void</span> <span class="title">doInvoke</span><span class="params">(ReceivedDelayMessage message)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ... </span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="comment">// 注：这里是进行append的地方</span></span><br><span class="line">      ReceivedResult result = facade.appendMessageLog(message);</span><br><span class="line">      offer(message, result);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">       <span class="keyword">error</span>(message, t);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>delay存储层相关逻辑都在facade这个类里，初始化时类似消息的校验等工作也都在这里，而message_log的相关操作都在messageLog里。</p>
+<figure class="highlight gradle"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">  <span class="keyword">public</span> AppendMessageRecordResult <span class="keyword">append</span>(RawMessageExtend record) &#123;</span><br><span class="line">      AppendMessageResult&lt;<span class="keyword">Long</span>&gt; result;</span><br><span class="line">      <span class="comment">// 注：当前最新的一个segment</span></span><br><span class="line">      LogSegment segment = logManager.latestSegment();</span><br><span class="line">      <span class="keyword">if</span> (<span class="keyword">null</span> == segment) &#123;</span><br><span class="line">          segment = logManager.allocNextSegment();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="keyword">null</span> == segment) &#123;</span><br><span class="line">          <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageRecordResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, <span class="keyword">null</span>);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 注：真正进行append的动作是messageAppender</span></span><br><span class="line">      result = segment.<span class="keyword">append</span>(record, messageAppender);</span><br><span class="line">      <span class="keyword">switch</span> (result.getStatus()) &#123;</span><br><span class="line">          <span class="keyword">case</span> MESSAGE_SIZE_EXCEEDED:</span><br><span class="line">              <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageRecordResult(PutMessageStatus.MESSAGE_ILLEGAL, <span class="keyword">null</span>);</span><br><span class="line">          <span class="keyword">case</span> END_OF_FILE:</span><br><span class="line">              <span class="keyword">if</span> (<span class="keyword">null</span> == logManager.allocNextSegment()) &#123;</span><br><span class="line">                  <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageRecordResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED, <span class="keyword">null</span>);</span><br><span class="line">              &#125;</span><br><span class="line">              <span class="keyword">return</span> <span class="keyword">append</span>(record);</span><br><span class="line">          <span class="keyword">case</span> SUCCESS:</span><br><span class="line">              <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageRecordResult(PutMessageStatus.SUCCESS, result);</span><br><span class="line">          <span class="keyword">default</span>:</span><br><span class="line">              <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageRecordResult(PutMessageStatus.UNKNOWN_ERROR, result);</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 看一下这个appender，也可以通过这里能看到QMQ的delay message 格式定义</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">class</span> DelayRawMessageAppender <span class="keyword">implements</span> MessageAppender&lt;RawMessageExtend, <span class="keyword">Long</span>&gt; &#123;</span><br><span class="line">      <span class="keyword">private</span> <span class="keyword">final</span> ReentrantLock lock = <span class="keyword">new</span> ReentrantLock();</span><br><span class="line">      <span class="keyword">private</span> <span class="keyword">final</span> ByteBuffer workingBuffer = ByteBuffer.allocate(<span class="number">1024</span>);</span><br><span class="line"></span><br><span class="line">      @Override</span><br><span class="line">      <span class="keyword">public</span> AppendMessageResult&lt;<span class="keyword">Long</span>&gt; doAppend(<span class="keyword">long</span> baseOffset, ByteBuffer targetBuffer, <span class="keyword">int</span> freeSpace, RawMessageExtend message) &#123;</span><br><span class="line">          <span class="comment">// 这个lock这里影响不大</span></span><br><span class="line">          lock.lock();</span><br><span class="line">          <span class="keyword">try</span> &#123;</span><br><span class="line">              workingBuffer.clear();</span><br><span class="line"></span><br><span class="line">              <span class="keyword">final</span> String messageId = message.getHeader().getMessageId();</span><br><span class="line">              <span class="keyword">final</span> <span class="keyword">byte</span>[] messageIdBytes = messageId.getBytes(StandardCharsets.UTF_8);</span><br><span class="line">              <span class="keyword">final</span> String subject = message.getHeader().getSubject();</span><br><span class="line">              <span class="keyword">final</span> <span class="keyword">byte</span>[] subjectBytes = subject.getBytes(StandardCharsets.UTF_8);</span><br><span class="line"></span><br><span class="line">              <span class="keyword">final</span> <span class="keyword">long</span> startWroteOffset = baseOffset + targetBuffer.position();</span><br><span class="line">              <span class="keyword">final</span> <span class="keyword">int</span> recordSize = recordSizeWithCrc(messageIdBytes.length, subjectBytes.length, message.getBodySize());</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (recordSize &gt; config.getSingleMessageLimitSize()) &#123;</span><br><span class="line">                  <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageResult&lt;&gt;(AppendMessageStatus.MESSAGE_SIZE_EXCEEDED, startWroteOffset, freeSpace, <span class="keyword">null</span>);</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              workingBuffer.flip();</span><br><span class="line">              <span class="keyword">if</span> (recordSize != freeSpace &amp;&amp; recordSize + MIN_RECORD_BYTES &gt; freeSpace) &#123;</span><br><span class="line">              		<span class="comment">// 填充</span></span><br><span class="line">                  workingBuffer.limit(freeSpace);</span><br><span class="line">                  workingBuffer.putInt(MESSAGE_LOG_MAGIC_V1);</span><br><span class="line">                  workingBuffer.put(MessageLogAttrEnum.ATTR_EMPTY_RECORD.getCode());</span><br><span class="line">                  workingBuffer.putLong(System.currentTimeMillis());</span><br><span class="line">                  targetBuffer.put(workingBuffer.array(), <span class="number">0</span>, freeSpace);</span><br><span class="line">                  <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageResult&lt;&gt;(AppendMessageStatus.END_OF_FILE, startWroteOffset, freeSpace, <span class="keyword">null</span>);</span><br><span class="line">              &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                  <span class="keyword">int</span> headerSize = recordSize - message.getBodySize();</span><br><span class="line">                  workingBuffer.limit(headerSize);</span><br><span class="line">                  workingBuffer.putInt(MESSAGE_LOG_MAGIC_V2);</span><br><span class="line">                  workingBuffer.put(MessageLogAttrEnum.ATTR_MESSAGE_RECORD.getCode());</span><br><span class="line">                  workingBuffer.putLong(System.currentTimeMillis());</span><br><span class="line">                  <span class="comment">// 注意这里，是schedule_time ，即延迟时间</span></span><br><span class="line">                  workingBuffer.putLong(message.getScheduleTime());</span><br><span class="line">                  <span class="comment">// sequence,每个brokerGroup应该是唯一的</span></span><br><span class="line">                  workingBuffer.putLong(sequence.incrementAndGet());</span><br><span class="line">                  workingBuffer.putInt(messageIdBytes.length);</span><br><span class="line">                  workingBuffer.put(messageIdBytes);</span><br><span class="line">                  workingBuffer.putInt(subjectBytes.length);</span><br><span class="line">                  workingBuffer.put(subjectBytes);</span><br><span class="line">                  workingBuffer.putLong(message.getHeader().getBodyCrc());</span><br><span class="line">                  workingBuffer.putInt(message.getBodySize());</span><br><span class="line">                  targetBuffer.put(workingBuffer.array(), <span class="number">0</span>, headerSize);</span><br><span class="line">                  targetBuffer.put(message.getBody().nioBuffer());</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">final</span> <span class="keyword">long</span> payloadOffset = startWroteOffset + headerSize;</span><br><span class="line">                  <span class="keyword">return</span> <span class="keyword">new</span> AppendMessageResult&lt;&gt;(AppendMessageStatus.SUCCESS, startWroteOffset, recordSize, payloadOffset);</span><br><span class="line">              &#125;</span><br><span class="line">          &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">              lock.unlock();</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>以上基本就是message_log的存储部分，接下来我们来看message_log的回放生成schedule_log。<br><a name="schedule_log"></a></p>
+<h2 id="schedule-log"><a href="#schedule-log" class="headerlink" title="schedule_log"></a>schedule_log</h2><p>MessageLogReplayer这个类就是控制回放的地方。那么考虑一个问题，下一次重启的时候，我们该从哪里进行回放？QMQ是会有一个回放的offset，这个offset会定时刷盘，下次重启的时候会从这个offset位置开始回放。细节可以看一下下面这段代码块。</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> LogVisitor&lt;LogRecord&gt; visitor = facade.newMessageLogVisitor(iterateFrom.longValue());</span><br><span class="line">adjustOffset(visitor);</span><br><span class="line"></span><br><span class="line"><span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    <span class="keyword">final</span> Optional&lt;LogRecord&gt; recordOptional = visitor.nextRecord();</span><br><span class="line">    <span class="keyword">if</span> (recordOptional.isPresent() &amp;&amp; recordOptional.<span class="built_in">get</span>() == DelayMessageLogVisitor.EMPTY_LOG_RECORD) &#123;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    recordOptional.ifPresent((record) -&gt; &#123;</span><br><span class="line">    		<span class="comment">// post以进行存储</span></span><br><span class="line">        dispatcher.post(record);</span><br><span class="line">        <span class="keyword">long</span> checkpoint = record.getStartWroteOffset() + record.getRecordSize();</span><br><span class="line">        <span class="keyword">this</span>.<span class="built_in">cursor</span>.addAndGet(record.getRecordSize());</span><br><span class="line">        facade.updateIterateOffset(checkpoint);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line">iterateFrom.<span class="built_in">add</span>(visitor.visitedBufferSize());</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    TimeUnit.MILLISECONDS.sleep(<span class="number">5</span>);</span><br><span class="line">&#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">    LOGGER.warn(<span class="string">"message log iterate sleep interrupted"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>注意这里除了offset还有个cursor，这是为了防止回放失败，sleep 5ms后再次回放的时候从cursor位置开始，避免重复消息。那么我们看一下dispatcher.post这个方法:</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">post</span>(<span class="params">LogRecord <span class="keyword">event</span></span>)</span> &#123;</span><br><span class="line">		<span class="comment">// 这里是schedule_log</span></span><br><span class="line">    AppendLogResult&lt;ScheduleIndex&gt; result = facade.appendScheduleLog(<span class="keyword">event</span>);</span><br><span class="line">    <span class="keyword">int</span> code = result.getCode();</span><br><span class="line">    <span class="keyword">if</span> (MessageProducerCode.SUCCESS != code) &#123;</span><br><span class="line">        LOGGER.error(<span class="string">"appendMessageLog schedule log error,log:&#123;&#125; &#123;&#125;,code:&#123;&#125;"</span>, <span class="keyword">event</span>.getSubject(), <span class="keyword">event</span>.getMessageId(), code);</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> AppendException(<span class="string">"appendScheduleLogError"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 先看这里</span></span><br><span class="line">    iterateCallback.apply(result.getAdditional());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如以上代码，我们看略过schedule_log的存储，看一下那个callback是几个意思:</p>
+<figure class="highlight axapta"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">boolean</span> iterateCallback(<span class="keyword">final</span> ScheduleIndex <span class="keyword">index</span>) &#123;</span><br><span class="line">  		<span class="comment">// 延迟时间</span></span><br><span class="line">      <span class="keyword">long</span> scheduleTime = <span class="keyword">index</span>.getScheduleTime();</span><br><span class="line">      <span class="comment">// 这个offset是startOffset,即在delay_segment中的这个消息的起始位置</span></span><br><span class="line">      <span class="keyword">long</span> offset = <span class="keyword">index</span>.getOffset();</span><br><span class="line">      <span class="comment">// 是否add到内存中的HashWheel</span></span><br><span class="line">      <span class="keyword">if</span> (wheelTickManager.canAdd(scheduleTime, offset)) &#123;</span><br><span class="line">          wheelTickManager.addWHeel(<span class="keyword">index</span>);</span><br><span class="line">          <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>这里的意思是，delay-server接收到消息，会判断一下这个消息是否需要add到内存中的wheel中，以防止丢消息。大家记着有这个事情，在投递小节中我们回过头来再说这里。那么回到facade.appendScheduleLog这个方法，schedule_log相关操作在scheduleLog里：</p>
+<figure class="highlight gradle"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">  <span class="keyword">public</span> RecordResult&lt;T&gt; <span class="keyword">append</span>(LogRecord record) &#123;</span><br><span class="line">      <span class="keyword">long</span> scheduleTime = record.getScheduleTime();</span><br><span class="line">      <span class="comment">// 这里是根据延迟时间定位对应的delaySegment的</span></span><br><span class="line">      DelaySegment&lt;T&gt; segment = locateSegment(scheduleTime);</span><br><span class="line">      <span class="keyword">if</span> (<span class="keyword">null</span> == segment) &#123;</span><br><span class="line">          segment = allocNewSegment(scheduleTime);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="keyword">null</span> == segment) &#123;</span><br><span class="line">          <span class="keyword">return</span> <span class="keyword">new</span> NopeRecordResult(PutMessageStatus.CREATE_MAPPED_FILE_FAILED);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 具体动作在append里</span></span><br><span class="line">      <span class="keyword">return</span> retResult(segment.<span class="keyword">append</span>(record, appender));</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>留意locateSegment这个方法，它是根据延迟时间定位DelaySegment，比如如果延迟时间是2019-03-03 16:00:00，那么就会定位到201903031600这个DelaySegment（注：这里贴的代码不是最新的，最新的是DelaySegment的刻度是可以配置，到分钟级别）。同样，具体动作也是appender做的，如下:</p>
+<figure class="highlight processing"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">    <span class="keyword">public</span> AppendRecordResult&lt;ScheduleSetSequence&gt; appendLog(LogRecord <span class="built_in">log</span>) &#123;</span><br><span class="line">        workingBuffer.<span class="built_in">clear</span>();</span><br><span class="line">        workingBuffer.flip();</span><br><span class="line">        <span class="keyword">final</span> <span class="built_in">byte</span>[] subjectBytes = <span class="built_in">log</span>.getSubject().getBytes(StandardCharsets.UTF_8);</span><br><span class="line">        <span class="keyword">final</span> <span class="built_in">byte</span>[] messageIdBytes = <span class="built_in">log</span>.getMessageId().getBytes(StandardCharsets.UTF_8);</span><br><span class="line">        <span class="built_in">int</span> recordSize = getRecordSize(<span class="built_in">log</span>, subjectBytes.length, messageIdBytes.length);</span><br><span class="line">        workingBuffer.limit(recordSize);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">long</span> scheduleTime = <span class="built_in">log</span>.getScheduleTime();</span><br><span class="line">        <span class="keyword">long</span> sequence = <span class="built_in">log</span>.getSequence();</span><br><span class="line">        workingBuffer.putLong(scheduleTime);</span><br><span class="line">        <span class="comment">// message_log中的sequence</span></span><br><span class="line">        workingBuffer.putLong(sequence);</span><br><span class="line">        workingBuffer.putInt(<span class="built_in">log</span>.getPayloadSize());</span><br><span class="line">        workingBuffer.putInt(messageIdBytes.length);</span><br><span class="line">        workingBuffer.put(messageIdBytes);</span><br><span class="line">        workingBuffer.putInt(subjectBytes.length);</span><br><span class="line">        workingBuffer.put(subjectBytes);</span><br><span class="line">        workingBuffer.put(<span class="built_in">log</span>.getRecord());</span><br><span class="line">        workingBuffer.flip();</span><br><span class="line">        ScheduleSetSequence record = <span class="keyword">new</span> ScheduleSetSequence(scheduleTime, sequence);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> AppendRecordResult&lt;&gt;(AppendMessageStatus.SUCCESS, <span class="number">0</span>, recordSize, workingBuffer, record);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>这里也能看到schedule_log的消息格式。</p>
+<p><strong>发现就写了个存储篇幅就已经挺大了，那么关于投递就开个下一篇吧。</strong></p>
+
+      
+    </div>
+
+    
+      
+
+
+    
+
+    
+    
+    
+
+    
+      <div>
+        <div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------The End-------------</div>
+    
+</div>
+      </div>
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/3159cb59.html" rel="next" title="QMQ源码分析之delay-server篇【一】">
+                <i class="fa fa-chevron-left"></i> QMQ源码分析之delay-server篇【一】
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+      <div class="comments" id="comments">
+       
+         <div id="gitment-container"></div>
+         </div>
+       
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/dxf.png" alt="邓旭峰">
+            
+              <p class="site-author-name" itemprop="name">邓旭峰</p>
+              <p class="site-description motion-element" itemprop="description">团结友爱互助</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">4</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">4</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0Rlbm5pczgyNzQ=" title="GitHub &rarr; https://github.com/Dennis8274"><i class="fa fa-fw fa-github"></i>GitHub</span>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <span class="exturl" data-url="bWFpbHRvOmRlbm5pc2R4ZkBnbWFpbC5jb20=" title="E-Mail &rarr; mailto:dennisdxf@gmail.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</span>
+                </span>
+              
+            </div>
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#整体结构"><span class="nav-number">2.</span> <span class="nav-text">整体结构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#存储"><span class="nav-number">3.</span> <span class="nav-text">存储</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#message-log"><span class="nav-number">3.1.</span> <span class="nav-text">message_log</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#schedule-log"><span class="nav-number">3.2.</span> <span class="nav-text">schedule_log</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">邓旭峰</span>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/jquery/2.1.3/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/velocity/1.2.3/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/velocity/1.2.3/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=6.7.0"></script>
+
+  <script src="/js/src/motion.js?v=6.7.0"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=6.7.0"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=6.7.0"></script>
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=6.7.0"></script>
+<script src="/js/src/post-details.js?v=6.7.0"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=6.7.0"></script>
+
+
+
+  
+
+
+  
+    
+   
+   
+   
+   
+   <link rel="stylesheet" href="https://zz.mcust.cn/gitment/gitment.css">
+   <script src="https://zz.mcust.cn/gitment/gitment.js"></script>
+   
+       <script type="text/javascript">
+           var gitment = new Gitment({
+               id: '1551490559000', 
+               owner: 'Dennis8274',
+               repo: 'dennis8274.github.io',
+               oauth: {
+                   client_id: '02f03563ce7f6cee3418',
+                   client_secret: 'a64ae46a293e6794b32b945c7094bb94dd623a44',
+               }});
+           gitment.render('gitment-container');
+       </script>
+   
+
+
+  
+
+
+  
+
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('5');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+      }
+      else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+      }
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/exturl.js?v=6.7.0"></script>
+
+
+  
+
+  
+  <style>
+    .copy-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #333;
+      white-space: nowrap;
+      vertical-align: middle;
+      cursor: pointer;
+      background-color: #eee;
+      background-image: linear-gradient(#fcfcfc, #eee);
+      border: 1px solid #d5d5d5;
+      border-radius: 3px;
+      user-select: none;
+      outline: 0;
+    }
+
+    .highlight-wrap .copy-btn {
+      transition: opacity .3s ease-in-out;
+      opacity: 0;
+      padding: 2px 6px;
+      position: absolute;
+      right: 4px;
+      top: 8px;
+    }
+
+    .highlight-wrap:hover .copy-btn,
+    .highlight-wrap .copy-btn:focus {
+      opacity: 1
+    }
+
+    .highlight-wrap {
+      position: relative;
+    }
+  </style>
+  <script>
+    $('.highlight').each(function(i, e) {
+      var $wrap = $('<div>').addClass('highlight-wrap');
+      $(e).after($wrap);
+      $wrap.append($('<button>').addClass('copy-btn').append('复制').on('click', function(e) {
+        var code = $(this).parent().find('.code').find('.line').map(function(i, e) {
+          return $(e).text();
+        }).toArray().join('\n');
+        var ta = document.createElement('textarea');
+        var range = document.createRange(); //For Chrome
+        var sel = window.getSelection(); //For Chrome
+        var yPosition = window.pageYOffset || document.documentElement.scrollTop;
+        ta.style.top = yPosition + 'px'; //Prevent page scroll
+        ta.style.position = 'absolute';
+        ta.style.opacity = '0';
+        ta.value = code;
+        ta.textContent = code; //For FireFox
+        ta.contentEditable = true;
+        ta.readOnly = false;
+        document.body.appendChild(ta);
+        range.selectNode(ta);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        ta.setSelectionRange(0, code.length);
+        var result = document.execCommand('copy');
+        
+          if (result) $(this).text('复制成功');
+          else $(this).text('复制失败');
+        
+        ta.blur(); //For iOS
+        $(this).blur();
+      })).on('mouseleave', function(e) {
+        var $b = $(this).find('.copy-btn');
+        setTimeout(function() {
+          $b.text('复制');
+        }, 300);
+      }).append(e);
+    })
+  </script>
+
+
+  
+
+</body>
+</html>
