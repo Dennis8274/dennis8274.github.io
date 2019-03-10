@@ -454,6 +454,24 @@
           </span>
 
           
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/技术分享/" itemprop="url" rel="index"><span itemprop="name">技术分享</span></a></span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -485,13 +503,12 @@
         
           
             <p>
-              tags: [MQ,源码分析]
-categories: [技术分享]
+              
 前言
 上篇我们分析了QMQ delay-server关于存储的部分，这一篇我们会对投递的源码进行分析。
 
 
-投递投递的相关内容在WheelTickManager这个类。提前加载schedule_log、wheel根据延迟时间到时进
+投递投递的相关内容在WheelTickManager这个类。提前加载schedule_log、wheel根据延迟时间到时进行投递等相关工作都在这里完成。而关于真正进行投递的相关类是在send
               ...
             </p>
           <!--noindex-->
