@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+  
+  
+    
+      
+    
+    
+      
+    
+  <script src="//cdn.bootcss.com/pace/1.0.2/pace.min.js"></script>
+  <link rel="stylesheet" href="//cdn.bootcss.com/pace/1.0.2/themes/blue/pace-theme-flash.min.css">
+
+
+
+
+
+
+
+  <meta name="google-site-verification" content="nZuxLdmlM5fb35MBllAK9Fwx_04gKAp_E8qkkXSabwA">
+
+
+
+
+
+
+
+  <meta name="baidu-site-verification" content="5ztlSKyYhT">
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<link rel="stylesheet" href="/css/main.css?v=6.7.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon .png?v=6.7.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=6.7.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=6.7.0">
+
+
+  <link rel="mask-icon" href="/images/dxf.png?v=6.7.0" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '6.7.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
+<meta name="keywords" content="MQ,源码分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="QMQ源码分析之Actor">
+<meta property="og:url" content="https://blog.dengxf.cn/93d6d117.html">
+<meta property="og:site_name" content="泊客">
+<meta property="og:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-03-24T06:17:54.802Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="QMQ源码分析之Actor">
+<meta name="twitter:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
+
+
+
+  <link rel="alternate" href="/atom.xml" title="泊客" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="https://blog.dengxf.cn/93d6d117.html">
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>QMQ源码分析之Actor | 泊客</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">泊客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">心之所向</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签<span class="badge">4</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类<span class="badge">3</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">7</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://blog.dengxf.cn/93d6d117.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="邓旭峰">
+      <meta itemprop="description" content="团结友爱互助">
+      <meta itemprop="image" content="/images/dxf.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="泊客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">QMQ源码分析之Actor
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-23 03:00:16" itemprop="dateCreated datePublished" datetime="2019-03-23T03:00:16+08:00">2019-03-23</time>
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/技术分享/" itemprop="url" rel="index"><span itemprop="name">技术分享</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><a name="df368884"></a></p>
+<h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><blockquote>
+<p>QMQ有关actor的一篇<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvYmxvYi9tYXN0ZXIvZG9jcy9jbi9hY3Rvci5tZA==" title="https://github.com/qunarcorp/qmq/blob/master/docs/cn/actor.md">文章<i class="fa fa-external-link"></i></span>阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvYmxvYi9tYXN0ZXIvZG9jcy9jbi9hY3Rvci5tZA==" title="https://github.com/qunarcorp/qmq/blob/master/docs/cn/actor.md">文章<i class="fa fa-external-link"></i></span>中的例子，一个主题下有两个消费组A和B，A有100个consumer，B有200个consumer，那么在RequestQueue中来自B的请求可能会对于A，这个时候就存在消费unfair的情况，所以需要隔离不同主题不同消费组以保证fair。除此之外，当consumer消费能力不足，造成broker消息堆积，这个时候就会导致consumer所在消费组总在消费”老消息”，影响全局消费能力。因为”老消息”不会存在page cache，这个时候很可能就会从磁盘load，那么表现是RequestQueue中来自消费”老消息”消费组的请求处理时间过长，影响到其他主题消费组的消费，因此这个时候也需要做策略来避免互相影响。所以QMQ就有了actor机制，以消除各个消费组之间因消费能力不同、consumer数量所造成不同的影响。</p>
+</blockquote>
+<p><a name="PullMessageWorker"></a></p>
+<h1 id="PullMessageWorker"><a href="#PullMessageWorker" class="headerlink" title="PullMessageWorker"></a>PullMessageWorker</h1><p>要了解QMQ的actor模式是如何起作用的，就要先来看看Broker是如何处理消息拉取请求的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PullMessageWorker</span> <span class="keyword">implements</span> <span class="title">ActorSystem</span>.<span class="title">Processor</span>&lt;<span class="title">PullMessageProcessor</span>.<span class="title">PullEntry</span>&gt; </span>&#123;</span><br><span class="line">    <span class="comment">// 消息存储层</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> MessageStoreWrapper store;</span><br><span class="line">    <span class="comment">// actor</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ActorSystem actorSystem;</span><br><span class="line">  	</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;String, ConcurrentMap&lt;String, Object&gt;&gt; subscribers;</span><br><span class="line"></span><br><span class="line">    PullMessageWorker(MessageStoreWrapper store, ActorSystem actorSystem) &#123;</span><br><span class="line">        <span class="keyword">this</span>.store = store;</span><br><span class="line">        <span class="keyword">this</span>.actorSystem = actorSystem;</span><br><span class="line">        <span class="keyword">this</span>.subscribers = <span class="keyword">new</span> ConcurrentHashMap&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">pull</span><span class="params">(PullMessageProcessor.PullEntry pullEntry)</span> </span>&#123;</span><br><span class="line">    		<span class="comment">// subject+group作actor调度粒度</span></span><br><span class="line">        <span class="keyword">final</span> String actorPath = ConsumerGroupUtils.buildConsumerGroupKey(pullEntry.subject, pullEntry.group);</span><br><span class="line">        <span class="comment">// actor调度</span></span><br><span class="line">        actorSystem.dispatch(actorPath, pullEntry, <span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">process</span><span class="params">(PullMessageProcessor.PullEntry entry</span></span></span><br><span class="line"><span class="function"><span class="params">                           , ActorSystem.Actor&lt;PullMessageProcessor.PullEntry&gt; self)</span> </span>&#123;</span><br><span class="line">        QMon.pullQueueTime(entry.subject, entry.group, entry.pullBegin);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//开始处理请求的时候就过期了，那么就直接不处理了，也不返回任何东西给客户端，客户端等待超时</span></span><br><span class="line">        <span class="comment">//因为出现这种情况一般是server端排队严重，暂时挂起客户端可以避免情况恶化</span></span><br><span class="line">        <span class="comment">// deadline机制，如果QMQ认为这个消费请求来不及处理，那么就直接返回，避免雪崩</span></span><br><span class="line">      	<span class="keyword">if</span> (entry.expired()) &#123;</span><br><span class="line">            QMon.pullExpiredCountInc(entry.subject, entry.group);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (entry.isInValid()) &#123;</span><br><span class="line">            QMon.pullInValidCountInc(entry.subject, entry.group);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">      	<span class="comment">// 存储层find消息</span></span><br><span class="line">        <span class="keyword">final</span> PullMessageResult pullMessageResult = store.findMessages(entry.pullRequest);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (pullMessageResult == PullMessageResult.FILTER_EMPTY ||</span><br><span class="line">                pullMessageResult.getMessageNum() &gt; <span class="number">0</span></span><br><span class="line">                || entry.isPullOnce()</span><br><span class="line">                || entry.isTimeout()) &#123;</span><br><span class="line">            entry.processMessageResult(pullMessageResult);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">      	<span class="comment">// 没有拉取到消息，那么挂起该actor</span></span><br><span class="line">        self.suspend();</span><br><span class="line">      	<span class="comment">// timer task，在超时前唤醒actor</span></span><br><span class="line">        <span class="keyword">if</span> (entry.setTimerOnDemand()) &#123;</span><br><span class="line">            QMon.suspendRequestCountInc(entry.subject, entry.group);</span><br><span class="line">          	<span class="comment">// 订阅消息，一有消息来就唤醒该actor</span></span><br><span class="line">            subscribe(entry.subject, entry.group);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">      	<span class="comment">// 已经超时，那么即刻唤醒调度</span></span><br><span class="line">        self.resume();</span><br><span class="line">        entry.processNoMessageResult();</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// 订阅</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">subscribe</span><span class="params">(String subject, String group)</span> </span>&#123;</span><br><span class="line">        ConcurrentMap&lt;String, Object&gt; map = subscribers.get(subject);</span><br><span class="line">        <span class="keyword">if</span> (map == <span class="keyword">null</span>) &#123;</span><br><span class="line">            map = <span class="keyword">new</span> ConcurrentHashMap&lt;&gt;();</span><br><span class="line">            map = ObjectUtils.defaultIfNull(subscribers.putIfAbsent(subject, map), map);</span><br><span class="line">        &#125;</span><br><span class="line">        map.putIfAbsent(group, HOLDER);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// 有消息来就唤醒订阅的subscriber</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">remindNewMessages</span><span class="params">(<span class="keyword">final</span> String subject)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> ConcurrentMap&lt;String, Object&gt; map = <span class="keyword">this</span>.subscribers.get(subject);</span><br><span class="line">        <span class="keyword">if</span> (map == <span class="keyword">null</span>) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String group : map.keySet()) &#123;</span><br><span class="line">            map.remove(group);</span><br><span class="line">            <span class="keyword">this</span>.actorSystem.resume(ConsumerGroupUtils.buildConsumerGroupKey(subject, group));</span><br><span class="line">            QMon.resumeActorCountInc(subject, group);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ActorSystem内定义的处理接口</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ActorSystem</span>.<span class="title">Processor</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">		<span class="function"><span class="keyword">boolean</span> <span class="title">process</span><span class="params">(T message, Actor&lt;T&gt; self)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>能看除在这里起作用的是这个actorSystem。PullMessageWorker继承了ActorSystem.Processor，所以真正处理拉取请求的是这个接口里的process方法。请求到达pullMessageWorker，worker将该次请求交给actorSystem调度，调度到这次请求时，worker还有个根据拉取结果做反应的策略，即如果暂时没有消息，那么suspend，以一个timer task定时resume；如果在timer task执行之前有消息进来，那么也会即时resume。<br><a name="ActorSystem"></a></p>
+<h1 id="ActorSystem"><a href="#ActorSystem" class="headerlink" title="ActorSystem"></a>ActorSystem</h1><p>接下来就看看ActorSystem里边是如何做的<code>公平调度</code>。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ActorSystem</span> </span>&#123;</span><br><span class="line">		<span class="comment">// 内部维护的是一个ConcurrentMap，key即PullMessageWorker里的subject+group</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ConcurrentMap&lt;String, Actor&gt; actors;</span><br><span class="line">    <span class="comment">// 执行actor的executor</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ThreadPoolExecutor executor;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> AtomicInteger actorsCount;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> String name;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ActorSystem</span><span class="params">(String name)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>(name, Runtime.getRuntime().availableProcessors() * <span class="number">4</span>, <span class="keyword">true</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ActorSystem</span><span class="params">(String name, <span class="keyword">int</span> threads, <span class="keyword">boolean</span> fair)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.name = name;</span><br><span class="line">        <span class="keyword">this</span>.actorsCount = <span class="keyword">new</span> AtomicInteger();</span><br><span class="line">        <span class="comment">// 这里根据fair参数初始化一个优先级队列作为executor的参数，处理关于前言里说的"老消息"的情况</span></span><br><span class="line">        BlockingQueue&lt;Runnable&gt; queue = fair ? <span class="keyword">new</span> PriorityBlockingQueue&lt;&gt;() : <span class="keyword">new</span> LinkedBlockingQueue&lt;&gt;();</span><br><span class="line">        <span class="keyword">this</span>.executor = <span class="keyword">new</span> ThreadPoolExecutor(threads, threads, <span class="number">60</span>, TimeUnit.MINUTES, queue, <span class="keyword">new</span> NamedThreadFactory(<span class="string">"actor-sys-"</span> + name));</span><br><span class="line">        <span class="keyword">this</span>.actors = Maps.newConcurrentMap();</span><br><span class="line">        QMon.dispatchersGauge(name, actorsCount::doubleValue);</span><br><span class="line">        QMon.actorSystemQueueGauge(name, () -&gt; (<span class="keyword">double</span>) executor.getQueue().size());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，用一个线程池处理actor的调度执行，这个线程池里的队列是一个优先级队列。优先级队列存储的元素是Actor。关于Actor我们稍后来看，先来看一下ActorSystem的处理调度流程。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// PullMessageWorker调用的就是这个方法</span></span><br><span class="line">  <span class="keyword">public</span> &lt;E&gt; <span class="function"><span class="keyword">void</span> <span class="title">dispatch</span><span class="params">(String actorPath, E msg, Processor&lt;E&gt; processor)</span> </span>&#123;</span><br><span class="line">    	<span class="comment">// 取得actor</span></span><br><span class="line">      Actor&lt;E&gt; actor = createOrGet(actorPath, processor);</span><br><span class="line">    	<span class="comment">// 在后文Actor定义里能看到，actor内部维护一个queue，这里actor仅仅是offer(msg)</span></span><br><span class="line">      actor.dispatch(msg);</span><br><span class="line">    	<span class="comment">// 执行调度</span></span><br><span class="line">      schedule(actor, <span class="keyword">true</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 无消息时，则会挂起</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">suspend</span><span class="params">(String actorPath)</span> </span>&#123;</span><br><span class="line">      Actor actor = actors.get(actorPath);</span><br><span class="line">      <span class="keyword">if</span> (actor == <span class="keyword">null</span>) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">      actor.suspend();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 有消息则恢复，可以理解成线程的"就绪状态"</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">resume</span><span class="params">(String actorPath)</span> </span>&#123;</span><br><span class="line">      Actor actor = actors.get(actorPath);</span><br><span class="line">      <span class="keyword">if</span> (actor == <span class="keyword">null</span>) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">      actor.resume();</span><br><span class="line">    	<span class="comment">// 立即调度，可以留意一下那个false</span></span><br><span class="line">    	<span class="comment">// 当actor是"可调度状态"时，这个actor是否能调度是取决于actor的queue是否有消息</span></span><br><span class="line">      schedule(actor, <span class="keyword">false</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> &lt;E&gt; <span class="function">Actor&lt;E&gt; <span class="title">createOrGet</span><span class="params">(String actorPath, Processor&lt;E&gt; processor)</span> </span>&#123;</span><br><span class="line">      Actor&lt;E&gt; actor = actors.get(actorPath);</span><br><span class="line">      <span class="keyword">if</span> (actor != <span class="keyword">null</span>) <span class="keyword">return</span> actor;</span><br><span class="line"></span><br><span class="line">      Actor&lt;E&gt; add = <span class="keyword">new</span> Actor&lt;&gt;(<span class="keyword">this</span>.name, actorPath, <span class="keyword">this</span>, processor, DEFAULT_QUEUE_SIZE);</span><br><span class="line">      Actor&lt;E&gt; old = actors.putIfAbsent(actorPath, add);</span><br><span class="line">      <span class="keyword">if</span> (old == <span class="keyword">null</span>) &#123;</span><br><span class="line">          LOG.info(<span class="string">"create actorSystem: &#123;&#125;"</span>, actorPath);</span><br><span class="line">          actorsCount.incrementAndGet();</span><br><span class="line">          <span class="keyword">return</span> add;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> old;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将actor入队的地方</span></span><br><span class="line">  <span class="keyword">private</span> &lt;E&gt; <span class="function"><span class="keyword">boolean</span> <span class="title">schedule</span><span class="params">(Actor&lt;E&gt; actor, <span class="keyword">boolean</span> hasMessageHint)</span> </span>&#123;</span><br><span class="line">    	<span class="comment">// 如果actor不能调度，则ret false</span></span><br><span class="line">      <span class="keyword">if</span> (!actor.canBeSchedule(hasMessageHint)) <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    	<span class="comment">// 设置actor为"可调度状态"</span></span><br><span class="line">      <span class="keyword">if</span> (actor.setAsScheduled()) &#123;</span><br><span class="line">        	<span class="comment">// 提交时间，和actor执行总耗时共同决定在队列里的优先级</span></span><br><span class="line">          actor.submitTs = System.currentTimeMillis();</span><br><span class="line">        	<span class="comment">// 入队，入的是线程池里的优先级队列</span></span><br><span class="line">          <span class="keyword">this</span>.executor.execute(actor);</span><br><span class="line">          <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    	<span class="comment">// actor.setAsScheduled()里，这里是actor已经是可调度状态，那么没必要再次入队</span></span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>actorSystem维护一个线程池，线程池队列具有优先级，队列存储元素是actor。actor的粒度是subject+group。Actor是一个Runnable，且因为是优先级队列的存储元素所以需继承Comparable接口（队列并没有传<em>Comparator参数</em>），并且actor有四种状态，初始状态、可调度状态、挂起状态、调度状态（这个状态其实不存在，但是暂且这么叫以帮助理解）。<br>接下来看看Actor这个类：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Actor</span>&lt;<span class="title">E</span>&gt; <span class="keyword">implements</span> <span class="title">Runnable</span>, <span class="title">Comparable</span>&lt;<span class="title">Actor</span>&gt; </span>&#123;</span><br><span class="line">  	<span class="comment">// 初始状态</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> Open = <span class="number">0</span>;</span><br><span class="line">  	<span class="comment">// 可调度状态</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> Scheduled = <span class="number">2</span>;</span><br><span class="line">  	<span class="comment">// 掩码，二进制表示:11 与Open和Scheduled作&amp;运算 </span></span><br><span class="line">  	<span class="comment">// shouldScheduleMask&amp;currentStatus != Open 则为不可置为调度状态（当currentStatus为挂起状态或调度状态）</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> shouldScheduleMask = <span class="number">3</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> shouldNotProcessMask = ~<span class="number">2</span>;</span><br><span class="line">  	<span class="comment">// 挂起状态</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> suspendUnit = <span class="number">4</span>;</span><br><span class="line">    <span class="comment">//每个actor至少执行的时间片</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> QUOTA = <span class="number">5</span>;</span><br><span class="line">  	<span class="comment">// status属性内存偏移量，用Unsafe操作</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">long</span> statusOffset;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            statusOffset = Unsafe.instance.objectFieldOffset(Actor.class.getDeclaredField(<span class="string">"status"</span>));</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExceptionInInitializerError(t);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> String systemName;</span><br><span class="line">    <span class="keyword">final</span> ActorSystem actorSystem;</span><br><span class="line">  	<span class="comment">// actor内部维护的queue，后文简单分析下</span></span><br><span class="line">    <span class="keyword">final</span> BoundedNodeQueue&lt;E&gt; queue;</span><br><span class="line">  	<span class="comment">// ActorSystem内部定义接口，PullMessageWorker实现的就是这个接口，用于真正业务逻辑处理的地方</span></span><br><span class="line">    <span class="keyword">final</span> Processor&lt;E&gt; processor;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> String name;</span><br><span class="line">  	<span class="comment">// 一个actor执行总耗时</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">long</span> total;</span><br><span class="line">  	<span class="comment">// actor执行提交时间，即actor入队时间</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">long</span> submitTs;</span><br><span class="line">    <span class="comment">//通过Unsafe操作</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">int</span> status;</span><br><span class="line"></span><br><span class="line">    Actor(String systemName, String name, ActorSystem actorSystem, Processor&lt;E&gt; processor, <span class="keyword">final</span> <span class="keyword">int</span> queueSize) &#123;</span><br><span class="line">        <span class="keyword">this</span>.systemName = systemName;</span><br><span class="line">        <span class="keyword">this</span>.name = name;</span><br><span class="line">        <span class="keyword">this</span>.actorSystem = actorSystem;</span><br><span class="line">        <span class="keyword">this</span>.processor = processor;</span><br><span class="line">        <span class="keyword">this</span>.queue = <span class="keyword">new</span> BoundedNodeQueue&lt;&gt;(queueSize);</span><br><span class="line"></span><br><span class="line">        QMon.actorQueueGauge(systemName, name, () -&gt; (<span class="keyword">double</span>) queue.count());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// 入队，是actor内部的队列</span></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">dispatch</span><span class="params">(E message)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> queue.add(message);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// actor执行的地方</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">long</span> start = System.currentTimeMillis();</span><br><span class="line">        String old = Thread.currentThread().getName();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Thread.currentThread().setName(systemName + <span class="string">"-"</span> + name);</span><br><span class="line">            <span class="keyword">if</span> (shouldProcessMessage()) &#123;</span><br><span class="line">                processMessages();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">long</span> duration = System.currentTimeMillis() - start;</span><br><span class="line">          	<span class="comment">// 每次actor执行的耗时累加到total</span></span><br><span class="line">            total += duration;</span><br><span class="line">            QMon.actorProcessTime(name, duration);</span><br><span class="line"></span><br><span class="line">            Thread.currentThread().setName(old);</span><br><span class="line">          	<span class="comment">// 设置为"空闲状态"，即初始状态 (currentStatus &amp; ~Scheduled)</span></span><br><span class="line">            setAsIdle();</span><br><span class="line">          	<span class="comment">// 进行下一次调度</span></span><br><span class="line">            <span class="keyword">this</span>.actorSystem.schedule(<span class="keyword">this</span>, <span class="keyword">false</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">processMessages</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">long</span> deadline = System.currentTimeMillis() + QUOTA;</span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            E message = queue.peek();</span><br><span class="line">            <span class="keyword">if</span> (message == <span class="keyword">null</span>) <span class="keyword">return</span>;</span><br><span class="line">          	<span class="comment">// 处理业务逻辑</span></span><br><span class="line">            <span class="keyword">boolean</span> process = processor.process(message, <span class="keyword">this</span>);</span><br><span class="line">          	<span class="comment">// 失败，该message不会出队，等待下一次调度</span></span><br><span class="line">          	<span class="comment">// 如pullMessageWorker中没有消息时将actor挂起</span></span><br><span class="line">            <span class="keyword">if</span> (!process) <span class="keyword">return</span>;</span><br><span class="line">		</span><br><span class="line">          	<span class="comment">// 出队</span></span><br><span class="line">            queue.pollNode();</span><br><span class="line">          	<span class="comment">// 每个actor只有QUOTA个时间片的执行时间</span></span><br><span class="line">            <span class="keyword">if</span> (System.currentTimeMillis() &gt;= deadline) <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">shouldProcessMessage</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      	<span class="comment">// 能够真正执行业务逻辑的判断</span></span><br><span class="line">      	<span class="comment">// 一种场景是，针对挂起状态，由于没有拉取到消息该actor置为挂起状态</span></span><br><span class="line">      	<span class="comment">// 自然就没有抢占时间片的必要了</span></span><br><span class="line">        <span class="keyword">return</span> (currentStatus() &amp; shouldNotProcessMask) == <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// 能否调度</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">canBeSchedule</span><span class="params">(<span class="keyword">boolean</span> hasMessageHint)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">int</span> s = currentStatus();</span><br><span class="line">        <span class="keyword">if</span> (s == Open || s == Scheduled) <span class="keyword">return</span> hasMessageHint || !queue.isEmpty();</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">resume</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> s = currentStatus();</span><br><span class="line">            <span class="keyword">int</span> next = s &lt; suspendUnit ? s : s - suspendUnit;</span><br><span class="line">            <span class="keyword">if</span> (updateStatus(s, next)) <span class="keyword">return</span> next &lt; suspendUnit;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">suspend</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> s = currentStatus();</span><br><span class="line">            <span class="keyword">if</span> (updateStatus(s, s + suspendUnit)) <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">setAsScheduled</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> s = currentStatus();</span><br><span class="line">          	<span class="comment">// currentStatus为非Open状态，则ret false</span></span><br><span class="line">            <span class="keyword">if</span> ((s &amp; shouldScheduleMask) != Open) <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">          	<span class="comment">// 更新actor状态为调度状态</span></span><br><span class="line">            <span class="keyword">if</span> (updateStatus(s, s | Scheduled)) <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">setAsIdle</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">            <span class="keyword">int</span> s = currentStatus();</span><br><span class="line">          	<span class="comment">// 更新actor状态位不可调度状态，(这里可以理解为更新为初始状态Open)</span></span><br><span class="line">            <span class="keyword">if</span> (updateStatus(s, s &amp; ~Scheduled)) <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">final</span> <span class="keyword">int</span> <span class="title">currentStatus</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      	<span class="comment">// 根据status在内存中的偏移量取得status</span></span><br><span class="line">        <span class="keyword">return</span> Unsafe.instance.getIntVolatile(<span class="keyword">this</span>, statusOffset);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">updateStatus</span><span class="params">(<span class="keyword">int</span> oldStatus, <span class="keyword">int</span> newStatus)</span> </span>&#123;</span><br><span class="line">      	<span class="comment">// Unsafe 原子操作，处理status的轮转变更</span></span><br><span class="line">        <span class="keyword">return</span> Unsafe.instance.compareAndSwapInt(<span class="keyword">this</span>, statusOffset, oldStatus, newStatus);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// 决定actor在优先级队列里的优先级的地方</span></span><br><span class="line">  	<span class="comment">// 先看总耗时，以达到动态限速，保证执行"慢"的请求（已经堆积的消息拉取请求）在后执行</span></span><br><span class="line">  	<span class="comment">// 其次看提交时间，先提交的actor先执行</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">compareTo</span><span class="params">(Actor o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">int</span> result = Long.compare(total, o.total);</span><br><span class="line">        <span class="keyword">return</span> result == <span class="number">0</span> ? Long.compare(submitTs, o.submitTs) : result;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span> == o) <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        <span class="keyword">if</span> (o == <span class="keyword">null</span> || getClass() != o.getClass()) <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">        Actor&lt;?&gt; actor = (Actor&lt;?&gt;) o;</span><br><span class="line">        <span class="keyword">return</span> Objects.equals(systemName, actor.systemName) &amp;&amp;</span><br><span class="line">                Objects.equals(name, actor.name);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> Objects.hash(systemName, name);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Actor实现了Comparable，在优先级队列里优先级是Actor里的total和submitTs共同决定的。total是actor执行总耗时，submitTs是调度时间。那么对于处理较慢的actor自然就会在队列里相对”尾部”位置，这时就做到了根据actor的执行耗时的一个动态限速。Actor利用Unsafe机制来控制各个状态的轮转原子性更新的，且每个actor执行时间可以简单理解为5个时间片（暂且这么理解，其实并不是时间片）。<br>其实工作进行到这里就可以结束了，但是抱着对于编程的热爱（周末闲的慌），还可以往下接着看看。<br>Actor内部维护一个Queue，这个Queue是自定义的，是一个<em>Lock-free bounded non-blocking multiple-producer single-consumer queue。JDK里的QUEUE多数都是用锁控制，不用锁，猜测也应该是用Unsafe 原子操作实现。那么来看看吧：</em></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">BoundedNodeQueue</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 头结点、尾节点在内存中的偏移量</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">static</span> <span class="keyword">long</span> enqOffset, deqOffset;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            enqOffset = Unsafe.instance.objectFieldOffset(BoundedNodeQueue.class.getDeclaredField(<span class="string">"_enqDoNotCallMeDirectly"</span>));</span><br><span class="line">            deqOffset = Unsafe.instance.objectFieldOffset(BoundedNodeQueue.class.getDeclaredField(<span class="string">"_deqDoNotCallMeDirectly"</span>));</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExceptionInInitializerError(t);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">int</span> capacity;</span><br><span class="line">    <span class="comment">// 尾节点，通过enqOffset操作</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> Node&lt;T&gt; _enqDoNotCallMeDirectly;</span><br><span class="line">    <span class="comment">// 头结点，通过deqOffset操作</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">volatile</span> Node&lt;T&gt; _deqDoNotCallMeDirectly;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="title">BoundedNodeQueue</span><span class="params">(<span class="keyword">final</span> <span class="keyword">int</span> capacity)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (capacity &lt; <span class="number">0</span>) <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"AbstractBoundedNodeQueue.capacity must be &gt;= 0"</span>);</span><br><span class="line">        <span class="keyword">this</span>.capacity = capacity;</span><br><span class="line">        <span class="keyword">final</span> Node&lt;T&gt; n = <span class="keyword">new</span> Node&lt;T&gt;();</span><br><span class="line">        setDeq(n);</span><br><span class="line">        setEnq(n);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取尾节点</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Node&lt;T&gt; <span class="title">getEnq</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    		<span class="comment">// getObjectVolatile这种方式保证拿到的都是最新数据</span></span><br><span class="line">        <span class="keyword">return</span> (Node&lt;T&gt;) Unsafe.instance.getObjectVolatile(<span class="keyword">this</span>, enqOffset);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 设置尾节点，仅在初始化时用</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">setEnq</span><span class="params">(Node&lt;T&gt; n)</span> </span>&#123;</span><br><span class="line">        Unsafe.instance.putObjectVolatile(<span class="keyword">this</span>, enqOffset, n);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">casEnq</span><span class="params">(Node&lt;T&gt; old, Node&lt;T&gt; nju)</span> </span>&#123;</span><br><span class="line">    		<span class="comment">// cas，循环设置，直到成功</span></span><br><span class="line">        <span class="keyword">return</span> Unsafe.instance.compareAndSwapObject(<span class="keyword">this</span>, enqOffset, old, nju);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取头结点</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Node&lt;T&gt; <span class="title">getDeq</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> (Node&lt;T&gt;) Unsafe.instance.getObjectVolatile(<span class="keyword">this</span>, deqOffset);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 仅在初始化时用</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">setDeq</span><span class="params">(Node&lt;T&gt; n)</span> </span>&#123;</span><br><span class="line">        Unsafe.instance.putObjectVolatile(<span class="keyword">this</span>, deqOffset, n);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// cas设置头结点</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">casDeq</span><span class="params">(Node&lt;T&gt; old, Node&lt;T&gt; nju)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> Unsafe.instance.compareAndSwapObject(<span class="keyword">this</span>, deqOffset, old, nju);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 与其叫count，不如唤作index，但是是否应该考虑溢出的情况？</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">int</span> <span class="title">count</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> Node&lt;T&gt; lastNode = getEnq();</span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">int</span> lastNodeCount = lastNode.count;</span><br><span class="line">        <span class="keyword">return</span> lastNodeCount - getDeq().count;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the maximum capacity of this queue</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">int</span> <span class="title">capacity</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> capacity;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">add</span><span class="params">(<span class="keyword">final</span> T value)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (Node&lt;T&gt; n = <span class="keyword">null</span>; ; ) &#123;</span><br><span class="line">            <span class="keyword">final</span> Node&lt;T&gt; lastNode = getEnq();</span><br><span class="line">            <span class="keyword">final</span> <span class="keyword">int</span> lastNodeCount = lastNode.count;</span><br><span class="line">            <span class="keyword">if</span> (lastNodeCount - getDeq().count &lt; capacity) &#123;</span><br><span class="line">                <span class="comment">// Trade a branch for avoiding to create a new node if full,</span></span><br><span class="line">                <span class="comment">// and to avoid creating multiple nodes on write conflict á la Be Kind to Your GC</span></span><br><span class="line">                <span class="keyword">if</span> (n == <span class="keyword">null</span>) &#123;</span><br><span class="line">                    n = <span class="keyword">new</span> Node&lt;T&gt;();</span><br><span class="line">                    n.value = value;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                n.count = lastNodeCount + <span class="number">1</span>; <span class="comment">// Piggyback on the HB-edge between getEnq() and casEnq()</span></span><br><span class="line"></span><br><span class="line">                <span class="comment">// Try to putPullLogs the node to the end, if we fail we continue loopin'</span></span><br><span class="line">                <span class="comment">// 相当于 </span></span><br><span class="line">              	<span class="comment">// enq -&gt; next = new Node(value); enq = neq -&gt; next;</span></span><br><span class="line">                <span class="keyword">if</span> (casEnq(lastNode, n)) &#123;</span><br><span class="line">                  	<span class="comment">// 注意一下这个Node.setNext方法</span></span><br><span class="line">                    lastNode.setNext(n);</span><br><span class="line">                    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">return</span> <span class="keyword">false</span>; <span class="comment">// Over capacity—couldn't add the node</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">isEmpty</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      	<span class="comment">// enq == deq 即为empty</span></span><br><span class="line">        <span class="keyword">return</span> getEnq() == getDeq();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Removes the first element of this queue if any</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the value of the first element of the queue, null if empty</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> T <span class="title">poll</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> Node&lt;T&gt; n = pollNode();</span><br><span class="line">        <span class="keyword">return</span> (n != <span class="keyword">null</span>) ? n.value : <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> T <span class="title">peek</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        Node&lt;T&gt; n = peekNode();</span><br><span class="line">        <span class="keyword">return</span> (n != <span class="keyword">null</span>) ? n.value : <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">final</span> Node&lt;T&gt; <span class="title">peekNode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (; ; ) &#123;</span><br><span class="line">            <span class="keyword">final</span> Node&lt;T&gt; deq = getDeq();</span><br><span class="line">            <span class="keyword">final</span> Node&lt;T&gt; next = deq.next();</span><br><span class="line">            <span class="keyword">if</span> (next != <span class="keyword">null</span> || getEnq() == deq)</span><br><span class="line">                <span class="keyword">return</span> next;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Removes the first element of this queue if any</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the `Node` of the first element of the queue, null if empty</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Node&lt;T&gt; <span class="title">pollNode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (; ; ) &#123;</span><br><span class="line">            <span class="keyword">final</span> Node&lt;T&gt; deq = getDeq();</span><br><span class="line">            <span class="keyword">final</span> Node&lt;T&gt; next = deq.next();</span><br><span class="line">            <span class="keyword">if</span> (next != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (casDeq(deq, next)) &#123;</span><br><span class="line">                    deq.value = next.value;</span><br><span class="line">                    deq.setNext(<span class="keyword">null</span>);</span><br><span class="line">                    next.value = <span class="keyword">null</span>;</span><br><span class="line">                    <span class="keyword">return</span> deq;</span><br><span class="line">                &#125; <span class="comment">// else we retry (concurrent consumers)</span></span><br><span class="line">              	<span class="comment">// 比较套路的cas操作，就不多说了</span></span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (getEnq() == deq) <span class="keyword">return</span> <span class="keyword">null</span>; <span class="comment">// If we got a null and head meets tail, we are empty</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Node</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">      </span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">static</span> <span class="keyword">long</span> nextOffset;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">static</span> &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                nextOffset = Unsafe.instance.objectFieldOffset(Node.class.getDeclaredField(<span class="string">"_nextDoNotCallMeDirectly"</span>));</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> ExceptionInInitializerError(t);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">protected</span> T value;</span><br><span class="line">        <span class="keyword">protected</span> <span class="keyword">int</span> count;</span><br><span class="line">        <span class="comment">// 也是利用偏移量操作</span></span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">volatile</span> Node&lt;T&gt; _nextDoNotCallMeDirectly;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Node&lt;T&gt; <span class="title">next</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> (Node&lt;T&gt;) Unsafe.instance.getObjectVolatile(<span class="keyword">this</span>, nextOffset);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">protected</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">setNext</span><span class="params">(<span class="keyword">final</span> Node&lt;T&gt; newNext)</span> </span>&#123;</span><br><span class="line">          	<span class="comment">// 这里有点讲究，下面分析下</span></span><br><span class="line">            Unsafe.instance.putOrderedObject(<span class="keyword">this</span>, nextOffset, newNext);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如上代码，是通过属性在内存的偏移量，结合cas原子操作来进行更新赋值等操作，以此来实现lock-free，这是比较常规的套路。值得一说的是Node里的setNext方法，这个方法的调用是在cas节点后，对”上一位置”的next节点进行赋值。而这个方法使用的是Unsafe.instance.putOrderedObject，要说这个putOrderedObject，就不得不说MESI，缓存一致性协议。如volatile，当进行写操作时，它是依靠storeload barrier来实现其他线程对此的可见性的。而putOrderedObject也是依靠内存屏障，只不过是storestore barrier。storestore是比storeload快速的一种内存屏障。在硬件层面，内存屏障分两种：Load-Barrier和Store-Barrier。Load-Barrier是让高速缓存中的数据失效，强制重新从主内存加载数据；Store-Barrier是让写入告诉缓存的数据更新写入主内存，对其他线程可见。而java层面的四种内存屏障无非是硬件层面的两种内存屏障的组合而已。那么可见，storestore barrier自然比storeload barrier快速。那么有一个问题，我们可不可以在这里也用cas操作呢？答案是可以，但没必要。你可以想想这里为什么没必要。<br>谢谢。</p>
+
+      
+    </div>
+
+    
+      
+
+
+    
+
+    
+    
+    
+
+    
+      <div>
+        <div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------The End-------------</div>
+    
+</div>
+      </div>
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/MQ/" rel="tag"># MQ</a>
+          
+            <a href="/tags/源码分析/" rel="tag"># 源码分析</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/f0aaa51f.html" rel="next" title="QMQ源码分析之发送消息">
+                <i class="fa fa-chevron-left"></i> QMQ源码分析之发送消息
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+      <div class="comments" id="comments">
+       
+         <div id="gitment-container"></div>
+         </div>
+       
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/dxf.png" alt="邓旭峰">
+            
+              <p class="site-author-name" itemprop="name">邓旭峰</p>
+              <p class="site-description motion-element" itemprop="description">团结友爱互助</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">4</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0Rlbm5pczgyNzQ=" title="GitHub &rarr; https://github.com/Dennis8274"><i class="fa fa-fw fa-github"></i>GitHub</span>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <span class="exturl" data-url="bWFpbHRvOmRlbm5pc2R4ZkBnbWFpbC5jb20=" title="E-Mail &rarr; mailto:dennisdxf@gmail.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</span>
+                </span>
+              
+            </div>
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li></ol><li class="nav-item nav-level-1"><a class="nav-link" href="#PullMessageWorker"><span class="nav-number"></span> <span class="nav-text">PullMessageWorker</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ActorSystem"><span class="nav-number"></span> <span class="nav-text">ActorSystem</span></a></li></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">邓旭峰</span>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/jquery/2.1.3/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/velocity/1.2.3/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/velocity/1.2.3/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=6.7.0"></script>
+
+  <script src="/js/src/motion.js?v=6.7.0"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=6.7.0"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=6.7.0"></script>
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=6.7.0"></script>
+<script src="/js/src/post-details.js?v=6.7.0"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=6.7.0"></script>
+
+
+
+  
+
+
+  
+    
+   
+   
+   
+   
+   <link rel="stylesheet" href="https://zz.mcust.cn/gitment/gitment.css">
+   <script src="https://zz.mcust.cn/gitment/gitment.js"></script>
+   
+       <script type="text/javascript">
+           var gitment = new Gitment({
+               id: '1553281216000', 
+               owner: 'Dennis8274',
+               repo: 'dennis8274.github.io',
+               oauth: {
+                   client_id: '02f03563ce7f6cee3418',
+                   client_secret: 'a64ae46a293e6794b32b945c7094bb94dd623a44',
+               }});
+           gitment.render('gitment-container');
+       </script>
+   
+
+
+  
+
+
+  
+
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('5');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+      }
+      else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+      }
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/exturl.js?v=6.7.0"></script>
+
+
+  
+
+  
+  <style>
+    .copy-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #333;
+      white-space: nowrap;
+      vertical-align: middle;
+      cursor: pointer;
+      background-color: #eee;
+      background-image: linear-gradient(#fcfcfc, #eee);
+      border: 1px solid #d5d5d5;
+      border-radius: 3px;
+      user-select: none;
+      outline: 0;
+    }
+
+    .highlight-wrap .copy-btn {
+      transition: opacity .3s ease-in-out;
+      opacity: 0;
+      padding: 2px 6px;
+      position: absolute;
+      right: 4px;
+      top: 8px;
+    }
+
+    .highlight-wrap:hover .copy-btn,
+    .highlight-wrap .copy-btn:focus {
+      opacity: 1
+    }
+
+    .highlight-wrap {
+      position: relative;
+    }
+  </style>
+  <script>
+    $('.highlight').each(function(i, e) {
+      var $wrap = $('<div>').addClass('highlight-wrap');
+      $(e).after($wrap);
+      $wrap.append($('<button>').addClass('copy-btn').append('复制').on('click', function(e) {
+        var code = $(this).parent().find('.code').find('.line').map(function(i, e) {
+          return $(e).text();
+        }).toArray().join('\n');
+        var ta = document.createElement('textarea');
+        var range = document.createRange(); //For Chrome
+        var sel = window.getSelection(); //For Chrome
+        var yPosition = window.pageYOffset || document.documentElement.scrollTop;
+        ta.style.top = yPosition + 'px'; //Prevent page scroll
+        ta.style.position = 'absolute';
+        ta.style.opacity = '0';
+        ta.value = code;
+        ta.textContent = code; //For FireFox
+        ta.contentEditable = true;
+        ta.readOnly = false;
+        document.body.appendChild(ta);
+        range.selectNode(ta);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        ta.setSelectionRange(0, code.length);
+        var result = document.execCommand('copy');
+        
+          if (result) $(this).text('复制成功');
+          else $(this).text('复制失败');
+        
+        ta.blur(); //For iOS
+        $(this).blur();
+      })).on('mouseleave', function(e) {
+        var $b = $(this).find('.copy-btn');
+        setTimeout(function() {
+          $b.text('复制');
+        }, 300);
+      }).append(e);
+    })
+  </script>
+
+
+  
+
+</body>
+</html>
