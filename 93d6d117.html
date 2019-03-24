@@ -113,18 +113,18 @@
 
 
 
-  <meta name="description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
+  <meta name="description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
 <meta name="keywords" content="MQ,源码分析">
 <meta property="og:type" content="article">
 <meta property="og:title" content="QMQ源码分析之Actor">
 <meta property="og:url" content="https://blog.dengxf.cn/93d6d117.html">
 <meta property="og:site_name" content="泊客">
-<meta property="og:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
+<meta property="og:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-03-24T06:19:38.982Z">
+<meta property="og:updated_time" content="2019-03-24T06:27:59.455Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="QMQ源码分析之Actor">
-<meta name="twitter:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
+<meta name="twitter:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
 
 
 
@@ -507,7 +507,7 @@
       
         <p><a name="df368884"></a></p>
 <h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><blockquote>
-<p>QMQ有关actor的一篇<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvYmxvYi9tYXN0ZXIvZG9jcy9jbi9hY3Rvci5tZA==" title="https://github.com/qunarcorp/qmq/blob/master/docs/cn/actor.md">文章<i class="fa fa-external-link"></i></span>阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在请多资源的情况。举个<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvYmxvYi9tYXN0ZXIvZG9jcy9jbi9hY3Rvci5tZA==" title="https://github.com/qunarcorp/qmq/blob/master/docs/cn/actor.md">文章<i class="fa fa-external-link"></i></span>中的例子，一个主题下有两个消费组A和B，A有100个consumer，B有200个consumer，那么在RequestQueue中来自B的请求可能会对于A，这个时候就存在消费unfair的情况，所以需要隔离不同主题不同消费组以保证fair。除此之外，当consumer消费能力不足，造成broker消息堆积，这个时候就会导致consumer所在消费组总在消费”老消息”，影响全局消费能力。因为”老消息”不会存在page cache，这个时候很可能就会从磁盘load，那么表现是RequestQueue中来自消费”老消息”消费组的请求处理时间过长，影响到其他主题消费组的消费，因此这个时候也需要做策略来避免互相影响。所以QMQ就有了actor机制，以消除各个消费组之间因消费能力不同、consumer数量所造成不同的影响。</p>
+<p>QMQ有关actor的一篇<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvYmxvYi9tYXN0ZXIvZG9jcy9jbi9hY3Rvci5tZA==" title="https://github.com/qunarcorp/qmq/blob/master/docs/cn/actor.md">文章<i class="fa fa-external-link"></i></span>阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个<span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3F1bmFyY29ycC9xbXEvYmxvYi9tYXN0ZXIvZG9jcy9jbi9hY3Rvci5tZA==" title="https://github.com/qunarcorp/qmq/blob/master/docs/cn/actor.md">文章<i class="fa fa-external-link"></i></span>中的例子，一个主题下有两个消费组A和B，A有100个consumer，B有200个consumer，那么在RequestQueue中来自B的请求可能会多于A，这个时候就存在消费unfair的情况，所以需要隔离不同主题不同消费组以保证fair。除此之外，当consumer消费能力不足，造成broker消息堆积，这个时候就会导致consumer所在消费组总在消费”老消息”，影响全局整体的一个消费能力。因为”老消息”不会存在page cache中，这个时候很可能就会从磁盘load，那么表现是RequestQueue中来自消费”老消息”消费组的请求处理时间过长，影响到其他主题消费组的消费，因此这个时候也需要做策略来避免不同消费组的相互影响。所以QMQ就有了actor机制，以消除各个消费组之间因消费能力不同、consumer数量不同而造成的相互影响各自的消费能力。</p>
 </blockquote>
 <p><a name="PullMessageWorker"></a></p>
 <h1 id="PullMessageWorker"><a href="#PullMessageWorker" class="headerlink" title="PullMessageWorker"></a>PullMessageWorker</h1><p>要了解QMQ的actor模式是如何起作用的，就要先来看看Broker是如何处理消息拉取请求的。</p>
