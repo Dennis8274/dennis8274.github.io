@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title><![CDATA[JDK源码阅读之CyclicBarrier]]></title>
+    <url>%2F97e68def.html</url>
+    <content type="text"><![CDATA[写在前面作者Doug Lea如此描述这个类：A synchronization aid that allows a set of threads to all wait for each other to reach a common barrier point.这也是一个多线程协调的辅助工具类。barrier可翻译为栅栏，顾名思义，这个类控制先到的线程则在”栅栏”处等待其他线程，直到所有线程都到达，再接着往下执行。此外，CyclicBarrier如其名，是循环可复用的。如下是源码中给出的示例代码： 123456789101112131415161718192021222324252627282930313233343536373839404142434445class Solver &#123; final int N; final float[][] data; final CyclicBarrier barrier; class Worker implements Runnable &#123; int myRow; Worker(int row) &#123; myRow = row; &#125; public void run() &#123; while (!done()) &#123; processRow(myRow); try &#123; // 等待一行处理结束 barrier.await(); &#125; catch (InterruptedException ex) &#123; return; &#125; catch (BrokenBarrierException ex) &#123; return; &#125; &#125; &#125; &#125; public Solver(float[][] matrix) &#123; data = matrix; N = matrix.length; // 所有行处理完，再merge Runnable barrierAction = new Runnable() &#123; public void run() &#123; mergeRows(...); &#125;&#125;; barrier = new CyclicBarrier(N, barrierAction); List&lt;Thread&gt; threads = new ArrayList&lt;Thread&gt;(N); for (int i = 0; i &lt; N; i++) &#123; Thread thread = new Thread(new Worker(i)); threads.add(thread); thread.start(); &#125; // wait until done for (Thread thread : threads) thread.join(); &#125; &#125;&#125; 如以上示例，并行处理每行矩阵元素，待所有行处理结束再对每行处理结果进行合并。 内部变量// 可重入锁控制对barrier的访问private final ReentrantLock lock = new ReentrantLock();// 控制线程阻塞，直到所有线程”到达”private final Condition trip = lock.newCondition();// 多少个参与方(线程)private final int parties;// 到达栅栏后执行的线程private final Runnable barrierCommand;// 内部类表示目前是哪一代private Generation generation = new Generation()// 还有几个参与方(线程)在未到达private int count; Generation为内部类，当触发栅栏或者重置，generation就会改变。 1234private static class Generation &#123; // 标识栅栏有没有被"踢翻" boolean broken = false;&#125; CyclicBarrier.await由源码中的示例代码，await是CyclicBarrier的主要起作用的方法。首先先看一下构造方法中对内部变量的初始化： 1234567public CyclicBarrier(int parties, Runnable barrierAction) &#123; if (parties &lt;= 0) throw new IllegalArgumentException(); this.parties = parties; // 初始parties个线程 this.count = parties; this.barrierCommand = barrierAction; &#125; 构造方法里就初始化了三个变量，分别是表示多少个线程的parties、还有多少个线程未到达的count、后置线程barrierCommand。await方法是调用内部私有方法dowait: 12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273747576private int dowait(boolean timed, long nanos) throws InterruptedException, BrokenBarrierException, TimeoutException &#123; final ReentrantLock lock = this.lock; // 加锁 lock.lock(); try &#123; // 当前代 final Generation g = generation; if (g.broken) // 抱歉，栅栏已经被踢翻了 throw new BrokenBarrierException(); if (Thread.interrupted()) &#123; // 线程中断了，需要唤醒所有线程 breakBarrier(); throw new InterruptedException(); &#125; int index = --count; if (index == 0) &#123; // tripped // 所有线程已到达 boolean ranAction = false; try &#123; final Runnable command = barrierCommand; if (command != null) // 后置线程 command.run(); ranAction = true; // 重置状态并唤醒所有线程 nextGeneration(); return 0; &#125; finally &#123; if (!ranAction) breakBarrier(); &#125; &#125; // loop until tripped, broken, interrupted, or timed out for (;;) &#123; try &#123; if (!timed) // condition.await 调用AQS里的Condition实现类 trip.await(); else if (nanos &gt; 0L) // 允许只等待一定时间 nanos = trip.awaitNanos(nanos); &#125; catch (InterruptedException ie) &#123; if (g == generation &amp;&amp; ! g.broken) &#123; breakBarrier(); throw ie; &#125; else &#123; // We're about to finish waiting even if we had not // been interrupted, so this interrupt is deemed to // "belong" to subsequent execution. Thread.currentThread().interrupt(); &#125; &#125; if (g.broken) throw new BrokenBarrierException(); if (g != generation) // 物是人非，已经不是睡之前的时代了 return index; if (timed &amp;&amp; nanos &lt;= 0L) &#123; breakBarrier(); throw new TimeoutException(); &#125; &#125; &#125; finally &#123; lock.unlock(); &#125;&#125; CyclicBarrier利用ReentrantLock控制对barrier的加锁访问，ReentrantLock.condition控制线程的阻塞唤醒。内部类Generation表示栅栏的一次生命周期，而每次栅栏被踢翻，generation要换代，即CyclicBarrier是可循环复用的。]]></content>
+      <categories>
+        <category>技术分享</category>
+      </categories>
+      <tags>
+        <tag>JDK</tag>
+        <tag>源码分析</tag>
+      </tags>
+  </entry>
+  <entry>
     <title><![CDATA[JDK源码阅读之CountDownLatch]]></title>
     <url>%2Fbdd3aaa7.html</url>
     <content type="text"><![CDATA[写在前面作者Doug Lea如此描述这个类：A synchronization aid that allows one or more threads to wait until a set of operations being performed in other threads completes.这是一个多线程协调的辅助类。源码中给出的示例代码： 1234567891011121314151617181920212223242526272829303132class Driver &#123; // ... void main() throws InterruptedException &#123; CountDownLatch startSignal = new CountDownLatch(1); CountDownLatch doneSignal = new CountDownLatch(N); for (int i = 0; i &lt; N; ++i) // create and start threads new Thread(new Worker(startSignal, doneSignal)).start(); doSomethingElse(); // don't let run yet startSignal.countDown(); // let all threads proceed doSomethingElse(); doneSignal.await(); // wait for all to finish &#125;&#125;class Worker implements Runnable &#123; private final CountDownLatch startSignal; private final CountDownLatch doneSignal; Worker(CountDownLatch startSignal, CountDownLatch doneSignal) &#123; this.startSignal = startSignal; this.doneSignal = doneSignal; &#125; public void run() &#123; try &#123; startSignal.await(); doWork(); doneSignal.countDown(); &#125; catch (InterruptedException ex) &#123;&#125; // return; &#125; void doWork() &#123; ... &#125;&#125;&#125; 通过示例对CountDownLatch的使用场景应该有个清晰的认识。即当有需要线程等待，直到在其他线程的一系列操作完成之后，再接着往下执行。 Sync变量Sync类是CountDownLatch的一个内部类，继承自AbstractQueuedSynchronizer，也就是常说的AQS。内部类重写了AQS的tryAcquireShared和tryReleaseShared两个方法。此外Sync的构造函数带一个int参数，在构造函数内调用了AQS的setState方法，这个方法是对AQS的内部一个int volatile变量赋值。 1234567891011121314151617181920212223242526private static final class Sync extends AbstractQueuedSynchronizer &#123; private static final long serialVersionUID = 4982264981922014374L; Sync(int count) &#123; setState(count); &#125; int getCount() &#123; return getState(); &#125; protected int tryAcquireShared(int acquires) &#123; return (getState() == 0) ? 1 : -1; &#125; protected boolean tryReleaseShared(int releases) &#123; // Decrement count; signal when transition to zero for (;;) &#123; int c = getState(); if (c == 0) return false; int nextc = c-1; if (compareAndSetState(c, nextc)) return nextc == 0; &#125; &#125; 在上边的示例中，我们用到了CountDownLatch的await方法和countDown方法，CountDownLatch的功能也就是通过这两个方法实现。这两个方法其实也就是调用sync。 CountDownLatch.await功能：当前线程等待，直到state等于0，或该线程interrupt。该方法就是调用sync.acquireSharedInterruptibly(1)。 1234567891011121314151617181920212223242526272829303132333435363738394041424344public final void acquireSharedInterruptibly(int arg) throws InterruptedException &#123; if (Thread.interrupted()) throw new InterruptedException(); // 调用实现类Sync的tryAcquireShared if (tryAcquireShared(arg) &lt; 0) // state 不等于 0 则执行 doAcquireSharedInterruptibly(arg);&#125;private void doAcquireSharedInterruptibly(int arg) throws InterruptedException &#123; // 用一个链表来表示需要"wait"的线程，在链表尾部加入一个node // 注意 如果head == null ,则初始化一个head，令head.next = node // 所以能理解state==0,一一唤醒所有等待的线程时，是唤醒头结点的下一节点所表示的线程 // 这样就达到了唤醒所有线程的目的 final Node node = addWaiter(Node.SHARED); boolean failed = true; try &#123; for (;;) &#123; // 前驱 final Node p = node.predecessor(); // 如果当前节点为头节点 if (p == head) &#123; // 调用CountDownLatch实现类里的tryAcquireShared int r = tryAcquireShared(arg); if (r &gt;= 0) &#123; // 当state == 0时，设置node为头结点 // 并且唤醒(LockSupport.unpark)node下一节点的所表示的线程 setHeadAndPropagate(node, r); p.next = null; // help GC failed = false; return; &#125; &#125; // wait，直到state == 0 时被唤醒（LockSupport.unpark） if (shouldParkAfterFailedAcquire(p, node) &amp;&amp; parkAndCheckInterrupt()) throw new InterruptedException(); &#125; &#125; finally &#123; if (failed) cancelAcquire(node); &#125; 总结：CountDownLatch.await就是调用LockSupport.park阻塞当前线程，并用一链表表示所有阻塞的线程，方便唤醒时一一唤醒。 CountDownLatch.countDown功能：令state减1，但state为0时，唤醒所有等待线程。该方法是调用sync.releaseShared(1)。 1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374757677 public final boolean releaseShared(int arg) &#123; // 调用实现类Sync的tryReleaseShared // state减1 if (tryReleaseShared(arg)) &#123; // 当state减为0时 doReleaseShared(); return true; &#125; return false; &#125;// 唤醒等待链表的头结点的下一节点// 下一节点唤醒后在doAcquireSharedInterruptibly这个方法中继续循环// 直到执行setHeadAndPropagate，在此方法中又会调用doReleaseShared,唤醒接下来的节点// 依次一一唤醒，直到唤醒所有等待线程节点 private void doReleaseShared() &#123; /* * Ensure that a release propagates, even if there are other * in-progress acquires/releases. This proceeds in the usual * way of trying to unparkSuccessor of head if it needs * signal. But if it does not, status is set to PROPAGATE to * ensure that upon release, propagation continues. * Additionally, we must loop in case a new node is added * while we are doing this. Also, unlike other uses of * unparkSuccessor, we need to know if CAS to reset status * fails, if so rechecking. */ for (;;) &#123; Node h = head; if (h != null &amp;&amp; h != tail) &#123; int ws = h.waitStatus; if (ws == Node.SIGNAL) &#123; // cas头结点状态为初始状态 if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0)) continue; // loop to recheck cases // 此方法中是唤醒头结点的下一线程节点 unparkSuccessor(h); &#125; else if (ws == 0 &amp;&amp; !compareAndSetWaitStatus(h, 0, Node.PROPAGATE)) continue; // loop on failed CAS &#125; // 如果线程节点改变重新循环 if (h == head) // loop if head changed break; &#125; &#125;// 唤醒node下一线程节点 private void unparkSuccessor(Node node) &#123; /* * If status is negative (i.e., possibly needing signal) try * to clear in anticipation of signalling. It is OK if this * fails or if status is changed by waiting thread. */ int ws = node.waitStatus; if (ws &lt; 0) compareAndSetWaitStatus(node, ws, 0); /* * Thread to unpark is held in successor, which is normally * just the next node. But if cancelled or apparently null, * traverse backwards from tail to find the actual * non-cancelled successor. */ Node s = node.next; if (s == null || s.waitStatus &gt; 0) &#123; s = null; // node后继节点可能为null或cancel for (Node t = tail; t != null &amp;&amp; t != node; t = t.prev) if (t.waitStatus &lt;= 0) s = t; &#125; if (s != null) // 唤醒节点s表示线程 LockSupport.unpark(s.thread); &#125; CountDownLatch源码分析的整个流程就是这样。CountDownLatch的功能是基于AQS展开，在后续的JUC的分析文章中还可以看到AQS的身影。接下来仍会对JDK中的源码做一些分析工作，重心会在JUC上。谢谢。]]></content>
@@ -8,8 +20,8 @@
         <category>技术分享</category>
       </categories>
       <tags>
-        <tag>源码分析</tag>
         <tag>JDK</tag>
+        <tag>源码分析</tag>
       </tags>
   </entry>
   <entry>
@@ -20,8 +32,8 @@
         <category>技术分享</category>
       </categories>
       <tags>
-        <tag>MQ</tag>
         <tag>源码分析</tag>
+        <tag>MQ</tag>
       </tags>
   </entry>
   <entry>
@@ -32,8 +44,8 @@
         <category>技术分享</category>
       </categories>
       <tags>
-        <tag>MQ</tag>
         <tag>源码分析</tag>
+        <tag>MQ</tag>
       </tags>
   </entry>
   <entry>
@@ -44,8 +56,8 @@
         <category>技术分享</category>
       </categories>
       <tags>
-        <tag>MQ</tag>
         <tag>源码分析</tag>
+        <tag>MQ</tag>
       </tags>
   </entry>
   <entry>
@@ -56,8 +68,8 @@
         <category>技术分享</category>
       </categories>
       <tags>
-        <tag>MQ</tag>
         <tag>源码分析</tag>
+        <tag>MQ</tag>
       </tags>
   </entry>
   <entry>
@@ -68,8 +80,8 @@
         <category>技术分享</category>
       </categories>
       <tags>
-        <tag>MQ</tag>
         <tag>源码分析</tag>
+        <tag>MQ</tag>
       </tags>
   </entry>
   <entry>
