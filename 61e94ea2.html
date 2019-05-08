@@ -121,7 +121,7 @@
 <meta property="og:site_name" content="泊客">
 <meta property="og:description" content="写在前面作者Doug Lea如此描述这个类：A counting semaphore.  Conceptually, a semaphore maintains a set of permits.顾名思义。计数信号量，它维护许可数量。acquire一个许可阻塞至池里有可用许可，release一个许可即往池里添加一个许可。如下为源码中示例代码： 12345678910111213141516171">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-05-05T07:14:33.720Z">
+<meta property="og:updated_time" content="2019-05-08T09:03:11.608Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JDK源码阅读之Semaphore">
 <meta name="twitter:description" content="写在前面作者Doug Lea如此描述这个类：A counting semaphore.  Conceptually, a semaphore maintains a set of permits.顾名思义。计数信号量，它维护许可数量。acquire一个许可阻塞至池里有可用许可，release一个许可即往池里添加一个许可。如下为源码中示例代码： 12345678910111213141516171">
@@ -474,6 +474,18 @@
           
             
             
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <a href="/61e94ea2.html#comments" itemprop="discussionUrl">
+                  <span class="post-meta-item-text">评论数：</span> <span class="post-comments-count valine-comment-count" data-xid="/61e94ea2.html" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
           
 
           
@@ -601,11 +613,8 @@
           
 
   
-      <div class="comments" id="comments">
-       
-         <div id="gitment-container"></div>
-         </div>
-       
+    <div class="comments" id="comments">
+    </div>
 
   
 
@@ -936,29 +945,35 @@
 
 
   
-
-
   
-    
-   
-   
-   
-   
-   <link rel="stylesheet" href="https://zz.mcust.cn/gitment/gitment.css">
-   <script src="https://zz.mcust.cn/gitment/gitment.js"></script>
-   
-       <script type="text/javascript">
-           var gitment = new Gitment({
-               id: '1557007917000', 
-               owner: 'Dennis8274',
-               repo: 'dennis8274.github.io',
-               oauth: {
-                   client_id: '02f03563ce7f6cee3418',
-                   client_secret: 'a64ae46a293e6794b32b945c7094bb94dd623a44',
-               }});
-           gitment.render('gitment-container');
-       </script>
-   
+
+<script src="//cdn1.lncld.net/static/js/3.11.1/av-min.js"></script>
+
+
+
+<script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = '名字,邮箱,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: true,
+    notify: true,
+    appId: 'TTQ8VRPngUbtEIBsm3hiuo73-gzGzoHsz',
+    appKey: 'eRXYHfCrk7gPGvyzHYa8eqbz',
+    placeholder: '长得帅的人，说话也都好听。',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
 
 
   

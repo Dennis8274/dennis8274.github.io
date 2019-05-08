@@ -121,7 +121,7 @@
 <meta property="og:site_name" content="泊客">
 <meta property="og:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-05-05T07:14:33.728Z">
+<meta property="og:updated_time" content="2019-05-08T09:03:11.624Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="QMQ源码分析之Actor">
 <meta name="twitter:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
@@ -474,6 +474,18 @@
           
             
             
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <a href="/93d6d117.html#comments" itemprop="discussionUrl">
+                  <span class="post-meta-item-text">评论数：</span> <span class="post-comments-count valine-comment-count" data-xid="/93d6d117.html" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
           
 
           
@@ -608,11 +620,8 @@
           
 
   
-      <div class="comments" id="comments">
-       
-         <div id="gitment-container"></div>
-         </div>
-       
+    <div class="comments" id="comments">
+    </div>
 
   
 
@@ -943,29 +952,35 @@
 
 
   
-
-
   
-    
-   
-   
-   
-   
-   <link rel="stylesheet" href="https://zz.mcust.cn/gitment/gitment.css">
-   <script src="https://zz.mcust.cn/gitment/gitment.js"></script>
-   
-       <script type="text/javascript">
-           var gitment = new Gitment({
-               id: '1553281216000', 
-               owner: 'Dennis8274',
-               repo: 'dennis8274.github.io',
-               oauth: {
-                   client_id: '02f03563ce7f6cee3418',
-                   client_secret: 'a64ae46a293e6794b32b945c7094bb94dd623a44',
-               }});
-           gitment.render('gitment-container');
-       </script>
-   
+
+<script src="//cdn1.lncld.net/static/js/3.11.1/av-min.js"></script>
+
+
+
+<script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = '名字,邮箱,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: true,
+    notify: true,
+    appId: 'TTQ8VRPngUbtEIBsm3hiuo73-gzGzoHsz',
+    appKey: 'eRXYHfCrk7gPGvyzHYa8eqbz',
+    placeholder: '长得帅的人，说话也都好听。',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
 
 
   

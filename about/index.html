@@ -121,7 +121,7 @@
 <meta property="og:site_name" content="泊客">
 <meta property="og:description" content="一名已经即将有为两年的有志青年。">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-05-05T07:13:45.701Z">
+<meta property="og:updated_time" content="2019-05-08T09:02:32.628Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="泊客">
 <meta name="twitter:description" content="一名已经即将有为两年的有志青年。">
@@ -756,6 +756,35 @@
 
 
   
+  
+
+<script src="//cdn1.lncld.net/static/js/3.11.1/av-min.js"></script>
+
+
+
+<script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = '名字,邮箱,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: true,
+    notify: true,
+    appId: 'TTQ8VRPngUbtEIBsm3hiuo73-gzGzoHsz',
+    appKey: 'eRXYHfCrk7gPGvyzHYa8eqbz',
+    placeholder: '长得帅的人，说话也都好听。',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
 
 
 
