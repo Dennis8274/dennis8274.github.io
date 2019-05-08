@@ -121,7 +121,7 @@
 <meta property="og:site_name" content="泊客">
 <meta property="og:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-05-08T09:03:53.361Z">
+<meta property="og:updated_time" content="2019-05-08T09:07:19.170Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="QMQ源码分析之Actor">
 <meta name="twitter:description" content="前言 QMQ有关actor的一篇文章阐述了actor的应用场景。即client消费消息的请求会先进入一个RequestQueue，在client消费消息时，往往存在多个主题、多个消费组共享一个RequestQueue消费消息。在这个Queue中，存在不同主题的有不同消费组数量，以及不同消费组有不同consumer数量，那么就会存在抢占资源的情况。举个文章中的例子，一个主题下有两个消费组A和B，A">
@@ -962,7 +962,7 @@
 
 <script>
   var GUEST = ['nick', 'mail', 'link'];
-  var guest = '名字,邮箱,link';
+  var guest = 'nick,mail,link';
   guest = guest.split(',').filter(function(item) {
     return GUEST.indexOf(item) > -1;
   });
