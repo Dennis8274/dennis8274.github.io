@@ -18,7 +18,6 @@
     "deploy": "npm run sync && hexo clean && hexo g -d"
   },
   "dependencies": {
-    "gitment": "0.0.3",
     "hexo": "^3.8.0",
     "hexo-abbrlink": "^2.0.5",
     "hexo-deployer-git": "^1.0.0",
