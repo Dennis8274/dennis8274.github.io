@@ -12,13 +12,13 @@ override: false
 cache:
   enable: true
 
-# Redefine custom file paths. Introduced in NexT v6.0.2.
-# If commented, will be used default custom file paths.
+  # Redefine custom file paths. Introduced in NexT v6.0.2.
+  # If commented, will be used default custom file paths.
 
-# For example, you want to put your custom styles file
-# outside theme directory in root `source/_data`, set
-# `styles: source/_data/styles.styl`
-#custom_file_path:
+  # For example, you want to put your custom styles file
+  # outside theme directory in root `source/_data`, set
+  # `styles: source/_data/styles.styl`
+  #custom_file_path:
   # Default paths: layout/_custom/*
   #head: source/_data/head.swig
   #header: source/_data/header.swig
@@ -205,9 +205,9 @@ social_icons:
 links_icon: link
 links_title: Links
 links_layout: block
-#links_layout: inline
-#links:
-  #Title: http://example.com
+  #links_layout: inline
+  #links:
+#Title: http://example.com
 
 # Sidebar Avatar
 avatar:
@@ -317,8 +317,8 @@ codeblock:
     # Show text copy result
     show_result: true
 
-# Wechat Subscriber
-#wechat_subscriber:
+  # Wechat Subscriber
+  #wechat_subscriber:
   #enabled: true
   #qcode: /path/to/your/wechatqcode e.g. /uploads/wechat-qcode.jpg
   #description: e.g. subscribe to my blog by scanning my public wechat account
@@ -545,7 +545,7 @@ valine:
   guest_info: nick,mail # custom comment header
   pageSize: 10 # pagination size
   visitor: false # leancloud-counter-security is not supported for now. When visitor is set to be true, appid and appkey are recommended to be the same as leancloud_visitors' for counter compatibility. Article reading statistic https://valine.js.org/visitor.html
-  comment_count: true # if false, comment count will only be displayed in post page, not in home page
+  comment_count: false # if false, comment count will only be displayed in post page, not in home page
 
 # Support for LiveRe comments system.
 # You can get your uid from https://livere.com/insight/myCode (General web site)
