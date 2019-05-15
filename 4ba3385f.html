@@ -121,7 +121,7 @@
 <meta property="og:site_name" content="young driver">
 <meta property="og:description" content="写在前面 作者Doug Lea如此描述这个类：An implementation of {@link java.util.concurrent.locks.ReadWriteLock} supporting similar  semantics to {@link java.util.concurrent.locks.ReentrantLock}.ReentratReadWriteLock是一个">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-05-13T12:44:59.537Z">
+<meta property="og:updated_time" content="2019-05-15T11:48:14.397Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JDK源码阅读之ReentrantReadWriteLock">
 <meta name="twitter:description" content="写在前面 作者Doug Lea如此描述这个类：An implementation of {@link java.util.concurrent.locks.ReadWriteLock} supporting similar  semantics to {@link java.util.concurrent.locks.ReentrantLock}.ReentratReadWriteLock是一个">
@@ -543,6 +543,7 @@
 <li>读写锁都为可重入的</li>
 <li>写锁为互斥锁，同时持有线程持有读锁。加解锁过程均为cas操作state变量。加锁过程state+=1,解锁过程state-=1。加锁时如果其它线程持有锁，则往队列里添加一个EXCLUSIVE节点表示当前线程等待写锁，并在当前位置park住等待唤醒，解锁时，如果队列里有等待节点则需要唤醒节点对应线程</li>
 <li>读锁为共享锁，多个线程能同时获得读锁。加锁过程即为state+=SHARED_UNIT(2^16)。加解锁过程是cas操作state变量高16位。加锁过程为state+=2^16,解锁过程state-=2^16。加锁时如果其它线程持有写锁，则往队列里添加一个SHARED节点标识当前线程等待读锁，并在当前位置park住等待唤醒，解锁时如果队列里有等待节点则需唤醒对应节点线程</li>
+<li>能看到，无论Fari还是Nonfair，写锁的获取都有可能因为读锁阻塞，在一定情况下，造成了获取写锁的线程饥饿的现象</li>
 </ol>
 
       
