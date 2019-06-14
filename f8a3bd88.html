@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+  
+  
+    
+      
+    
+    
+      
+    
+  <script src="//cdn.bootcss.com/pace/1.0.2/pace.min.js"></script>
+  <link rel="stylesheet" href="//cdn.bootcss.com/pace/1.0.2/themes/blue/pace-theme-flash.min.css">
+
+
+
+
+
+
+
+  <meta name="google-site-verification" content="nZuxLdmlM5fb35MBllAK9Fwx_04gKAp_E8qkkXSabwA">
+
+
+
+
+
+
+
+  <meta name="baidu-site-verification" content="5ztlSKyYhT">
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<link rel="stylesheet" href="/css/main.css?v=6.7.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon .png?v=6.7.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=6.7.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=6.7.0">
+
+
+  <link rel="mask-icon" href="/images/dxf.png?v=6.7.0" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '6.7.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":true,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="前言 An unbounded {@link java.util.concurrent.TransferQueue} based on linked nodes.This queue orders elements FIFO (first-in-first-out) with respect to any given producer.LinkedTransferQueue基于链表实现于Tran">
+<meta name="keywords" content="JDK,源码分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JDK源码阅读之LinkedTransferQueue">
+<meta property="og:url" content="https://blog.dengxf.cn/f8a3bd88.html">
+<meta property="og:site_name" content="young driver">
+<meta property="og:description" content="前言 An unbounded {@link java.util.concurrent.TransferQueue} based on linked nodes.This queue orders elements FIFO (first-in-first-out) with respect to any given producer.LinkedTransferQueue基于链表实现于Tran">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1560502635177-d0c0f554-e605-4270-a03a-c6404eedf047.png#align=left&display=inline&height=200&name=image.png&originHeight=247&originWidth=660&size=8423&status=done&width=535">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1560502849977-aaf5419c-bf67-4a43-aa24-761f29ff67ed.png#align=left&display=inline&height=195&name=image.png&originHeight=203&originWidth=716&size=7732&status=done&width=688">
+<meta property="og:updated_time" content="2019-06-14T10:45:57.134Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="JDK源码阅读之LinkedTransferQueue">
+<meta name="twitter:description" content="前言 An unbounded {@link java.util.concurrent.TransferQueue} based on linked nodes.This queue orders elements FIFO (first-in-first-out) with respect to any given producer.LinkedTransferQueue基于链表实现于Tran">
+<meta name="twitter:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1560502635177-d0c0f554-e605-4270-a03a-c6404eedf047.png#align=left&display=inline&height=200&name=image.png&originHeight=247&originWidth=660&size=8423&status=done&width=535">
+
+
+
+  <link rel="alternate" href="/atom.xml" title="young driver" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="https://blog.dengxf.cn/f8a3bd88.html">
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>JDK源码阅读之LinkedTransferQueue | young driver</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">young driver</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">小时候想要找一个喜欢《わがまま☆フェアリー ミルモでポン！》的女朋友</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签<span class="badge">5</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类<span class="badge">3</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">15</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://blog.dengxf.cn/f8a3bd88.html">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="邓旭峰">
+      <meta itemprop="description" content="团结友爱互助">
+      <meta itemprop="image" content="/images/dxf.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="young driver">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">JDK源码阅读之LinkedTransferQueue
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-06-14 07:58:45" itemprop="dateCreated datePublished" datetime="2019-06-14T07:58:45+08:00">2019-06-14</time>
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/技术分享/" itemprop="url" rel="index"><span itemprop="name">技术分享</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <a href="/f8a3bd88.html#comments" itemprop="discussionUrl">
+                  <span class="post-meta-item-text">评论数：</span> <span class="post-comments-count valine-comment-count" data-xid="/f8a3bd88.html" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><a name="n9zcO"></a></p>
+<h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><blockquote>
+<p><em>An unbounded {</em><strong>@link </strong><em>java.util.concurrent.TransferQueue} based on linked nodes.This queue orders elements FIFO (first-in-first-out) with respect to any given producer.</em><br>LinkedTransferQueue基于链表实现于TransferQueue接口，是一个遵循FIFO的队列。TransferQueue具有阻塞队列的行为(继承BlockingQueue接口)，并且producer也可以阻塞等待consumer从队列中取出该element消费。</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">TransferQueue</span>&lt;<span class="title">E</span>&gt; <span class="keyword">extends</span> <span class="title">BlockingQueue</span>&lt;<span class="title">E</span>&gt; </span>&#123;</span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    * 如果有consumer正在队列阻塞等待获取数据，那么tryTransfer成功，否则失败。</span></span><br><span class="line"><span class="comment">    * 该方法并不会往队列里put元素，而是直接交给等待着的consumer。</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">tryTransfer</span><span class="params">(E e)</span></span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    * producer阻塞等待直到该element被consumer消费</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">transfer</span><span class="params">(E e)</span> <span class="keyword">throws</span> InterruptedException</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    * 与第一个方法的区别为，会等待上unit.toMillis(timeout)段时间</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">tryTransfer</span><span class="params">(E e, <span class="keyword">long</span> timeout, TimeUnit unit)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> InterruptedException</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    * 队列中是否有等待的consumer</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">hasWaitingConsumer</span><span class="params">()</span></span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    * 有多少个等待着的consumer</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="function"><span class="keyword">int</span> <span class="title">getWaitingConsumerCount</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>LinkedTransferQueue除了有BlockingQueue的行为外，还具有以上行为。<br><a name="YmdPN"></a></p>
+<h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>LinkedTransferQueue实现了TransferQueue接口，而TransferQueue又继承自BlockingQueue。<br>众所周知，阻塞队列是生产者往队列放入元素，消费者往队列取出元素进行消费，如果队列无空闲空间/无可用元素则生产者/消费者会相应阻塞。</p>
+<p>一般的阻塞队列，生产者和消费者是互不关心的，即两者完全解耦。正常情况下一般是不会互相阻塞(队列有足够的空间，生产者不会因为队列无空闲空间而阻塞；队列有足够的元素，消费者不会因为队列无元素可取而阻塞)。生产者将元素入队就可以离开了，不关心谁取走了它的元素；消费者将元素取出就可以离开了，不关心谁放的这个元素。但是TransferQueue不是，它的生产者和消费者允许互相阻塞。</p>
+<p>LinkedTransferQueue的算法采用的是一种Dual Queue的变种，Dual Queues with Slack。<br>Dual Queue不仅能存放数据节点，还能存放请求节点。一个数据节点想要入队，这个时候队列里正好有请求节点，此时”匹配”，并移除该请求节点。Blocking Dual Queue入队一个未匹配的请求节点时，会阻塞直到匹配节点入队。Dual Synchronous Queue在Blocking Dual Queue基础上，还会在一个未匹配的数据节点入队时也会阻塞。而Dual Transfer Queue支持以上任何一种模式，具体是哪一种取决于调用者，也就是有不同的api支持。</p>
+<p>FIFO Dual Queue使用的是名叫M&amp;S的一种lock-free算法(<span class="exturl" data-url="aHR0cDovL3d3dy5jcy5yb2NoZXN0ZXIuZWR1L3Uvc2NvdHQvcGFwZXJzLzE5OTZfUE9EQ19xdWV1ZXMucGRmKeeahOWPmOenjeOAgg==" title="http://www.cs.rochester.edu/u/scott/papers/1996_PODC_queues.pdf)的变种。">http://www.cs.rochester.edu/u/scott/papers/1996_PODC_queues.pdf)的变种。<i class="fa fa-external-link"></i></span></p>
+<p>M&amp;S算法维护一个”head”指针和一个”tail”指针。head指向一个匹配节点M，M指向第一个未匹配节点(如果未空则指向null)，tail指向未匹配节点。如下<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1560502635177-d0c0f554-e605-4270-a03a-c6404eedf047.png#align=left&amp;display=inline&amp;height=200&amp;name=image.png&amp;originHeight=247&amp;originWidth=660&amp;size=8423&amp;status=done&amp;width=535" alt="image.png"><br>在Dual Queue内部，由链表组成，对于每个链表节点维护一个match status。在LinkedTransferQueue中为item。对于一个data节点，匹配过程体现在item上就是:non-null -&gt; null，反过来，对于一个request节点，匹配过程就是：null-&gt;non null。Dual Queue的这个match status一经改变，就不会再变更它了。也就是说这个item cas操作过后就不会动了。</p>
+<p>基于此，现在的Dual Queue的组成可能就是在一个分割线前全是M节点，分割线后全是U节点。假设我们不关心时间和空间，入队和出队的过程就是遍历这个链表找到第一个U和最后一个U，这样我们就不会有cas竞争的问题了。</p>
+<p>基于以上的分析，我们就可以有一个这样的tradeoff来减少head tail的cas竞争。如下：<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1560502849977-aaf5419c-bf67-4a43-aa24-761f29ff67ed.png#align=left&amp;display=inline&amp;height=195&amp;name=image.png&amp;originHeight=203&amp;originWidth=716&amp;size=7732&amp;status=done&amp;width=688" alt="image.png"><br>将head和第一个未匹配的节点U之间的距离叫做”slack”，根据一些经验和实验数据发现，slack在1-3之间时工作的更好，所以，LinkedTransferQueue将其定为2。<br><a name="YXpNj"></a></p>
+<h1 id="源码阅读"><a href="#源码阅读" class="headerlink" title="源码阅读"></a>源码阅读</h1><p>关于BlockingQueue的相关行为不做过多解读，主要看继承自TransferQueue的行为。<br><a name="Lkylm"></a></p>
+<h3 id="内部变量"><a href="#内部变量" class="headerlink" title="内部变量"></a>内部变量</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">    * head of the queue; null until first enqueue</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">transient</span> <span class="keyword">volatile</span> Node head;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * tail of the queue; null until first append</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">transient</span> <span class="keyword">volatile</span> Node tail;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">    * Possible values for "how" argument in xfer method.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> NOW = <span class="number">0</span>; <span class="comment">// for untimed poll, tryTransfer</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> ASYNC = <span class="number">1</span>; <span class="comment">// for offer, put, add</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SYNC = <span class="number">2</span>; <span class="comment">// for transfer, take</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> TIMED = <span class="number">3</span>; <span class="comment">// for timed poll, tryTransfer</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Node 类结构</span></span><br><span class="line">   <span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">Node</span> </span>&#123;</span><br><span class="line">       <span class="keyword">final</span> <span class="keyword">boolean</span> isData;   <span class="comment">// false if this is a request node</span></span><br><span class="line">       <span class="comment">// 作者解释说item用Object，没用泛型的原因是利于垃圾回收</span></span><br><span class="line">       <span class="comment">// quoto:Uses Object, not E, for items to allow forgetting them after use.</span></span><br><span class="line">       <span class="comment">// 没查到为啥利于垃圾回收</span></span><br><span class="line">       <span class="keyword">volatile</span> Object item;   <span class="comment">// initially non-null if isData; CASed to match</span></span><br><span class="line">       <span class="keyword">volatile</span> Node next;</span><br><span class="line">       <span class="keyword">volatile</span> Thread waiter; <span class="comment">// null until waiting</span></span><br><span class="line">       </span><br><span class="line">      <span class="comment">/**</span></span><br><span class="line"><span class="comment">        * Constructs a new node.  Uses relaxed write because item can</span></span><br><span class="line"><span class="comment">        * only be seen after publication via casNext.</span></span><br><span class="line"><span class="comment">        */</span></span><br><span class="line">       Node(Object item, <span class="keyword">boolean</span> isData) &#123;</span><br><span class="line">           <span class="comment">// 之所以可以用putObject，是因为item为volatile</span></span><br><span class="line">           <span class="comment">// 其次Node构造是在pred.casNext之后(casNext之后，构造node才算能够可达)</span></span><br><span class="line">           <span class="comment">// 所以可见性是能够保证的</span></span><br><span class="line">           UNSAFE.putObject(<span class="keyword">this</span>, itemOffset, item); <span class="comment">// relaxed write</span></span><br><span class="line">           <span class="keyword">this</span>.isData = isData;</span><br><span class="line">       &#125;</span><br><span class="line">       </span><br><span class="line">      <span class="comment">/**</span></span><br><span class="line"><span class="comment">        * Links node to itself to avoid garbage retention.  Called</span></span><br><span class="line"><span class="comment">        * only after CASing head field, so uses relaxed write.</span></span><br><span class="line"><span class="comment">        */</span></span><br><span class="line">       <span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">forgetNext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">           UNSAFE.putObject(<span class="keyword">this</span>, nextOffset, <span class="keyword">this</span>);</span><br><span class="line">       &#125;</span><br><span class="line">       </span><br><span class="line">       <span class="comment">/**</span></span><br><span class="line"><span class="comment">        * Sets item to self and waiter to null, to avoid garbage</span></span><br><span class="line"><span class="comment">        * retention after matching or cancelling. Uses relaxed writes</span></span><br><span class="line"><span class="comment">        * because order is already constrained in the only calling</span></span><br><span class="line"><span class="comment">        * contexts: item is forgotten only after volatile/atomic</span></span><br><span class="line"><span class="comment">        * mechanics that extract items.  Similarly, clearing waiter</span></span><br><span class="line"><span class="comment">        * follows either CAS or return from park (if ever parked;</span></span><br><span class="line"><span class="comment">        * else we don't care).</span></span><br><span class="line"><span class="comment">        */</span></span><br><span class="line">       <span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">forgetContents</span><span class="params">()</span> </span>&#123;</span><br><span class="line">           UNSAFE.putObject(<span class="keyword">this</span>, itemOffset, <span class="keyword">this</span>);</span><br><span class="line">           UNSAFE.putObject(<span class="keyword">this</span>, waiterOffset, <span class="keyword">null</span>);</span><br><span class="line">       &#125;</span><br><span class="line">       </span><br><span class="line">       <span class="comment">/**</span></span><br><span class="line"><span class="comment">        * Returns true if this node has been matched, including the</span></span><br><span class="line"><span class="comment">        * case of artificial matches due to cancellation.</span></span><br><span class="line"><span class="comment">        */</span></span><br><span class="line">       <span class="comment">// 判断是否该Node是否匹配过</span></span><br><span class="line">       <span class="function"><span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">isMatched</span><span class="params">()</span> </span>&#123;</span><br><span class="line">           Object x = item;</span><br><span class="line">           <span class="keyword">return</span> (x == <span class="keyword">this</span>) <span class="comment">// manual cancel</span></span><br><span class="line">                   <span class="comment">// matched</span></span><br><span class="line">                   || ((x == <span class="keyword">null</span>) == isData);</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<p>由以上代码能看到，内部维护的变量相对来说还是比较少的，主要是链表的head 和tail。最下边的四个静态场景是作为xfer方法how参数，以区分不通方法用于不同场景的调用。</p>
+<ul>
+<li><code>NOW</code>  用于poll()、tryTransfer(E e)方法调用</li>
+<li><code>ASYNC</code>   用于offset()、put()、add()方法调用 </li>
+<li><code>SYNC</code>  用于transfer()、take()方法调用</li>
+<li><code>TIMED</code> 用于poll(long timeout,TimeUnit unit)、tryTransfer(E e,long timeout,TimeUnit unit)方法调用</li>
+</ul>
+<p><a name="8uolh"></a></p>
+<h3 id="行为分析"><a href="#行为分析" class="headerlink" title="行为分析"></a>行为分析</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">    * 通过xfer方法实现，同步不同的参数来区分不同的场景。</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * producer，要是有等待的consumer成功，否则失败</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">tryTransfer</span><span class="params">(E e)</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> xfer(e, <span class="keyword">true</span>, NOW, <span class="number">0</span>) == <span class="keyword">null</span>;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * producer，失败会interrupt,并抛出异常</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">transfer</span><span class="params">(E e)</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">       <span class="keyword">if</span> (xfer(e, <span class="keyword">true</span>, SYNC, <span class="number">0</span>) != <span class="keyword">null</span>) &#123;</span><br><span class="line">           Thread.interrupted(); <span class="comment">// failure possible only due to interrupt</span></span><br><span class="line">           <span class="keyword">throw</span> <span class="keyword">new</span> InterruptedException();</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * producer,在timeout时间内，成功，否则</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">tryTransfer</span><span class="params">(E e, <span class="keyword">long</span> timeout, TimeUnit unit)</span></span></span><br><span class="line"><span class="function">           <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">       <span class="keyword">if</span> (xfer(e, <span class="keyword">true</span>, TIMED, unit.toNanos(timeout)) == <span class="keyword">null</span>)</span><br><span class="line">           <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">       <span class="keyword">if</span> (!Thread.interrupted())</span><br><span class="line">           <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">       <span class="keyword">throw</span> <span class="keyword">new</span> InterruptedException();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * consumer，在unit.toNanos(timeout)时间内成功，否则会抛出异常</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> E <span class="title">poll</span><span class="params">(<span class="keyword">long</span> timeout, TimeUnit unit)</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">       E e = xfer(<span class="keyword">null</span>, <span class="keyword">false</span>, TIMED, unit.toNanos(timeout));</span><br><span class="line">       <span class="keyword">if</span> (e != <span class="keyword">null</span> || !Thread.interrupted())</span><br><span class="line">           <span class="keyword">return</span> e;</span><br><span class="line">       <span class="keyword">throw</span> <span class="keyword">new</span> InterruptedException();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * consumer,队列有即返回，否则null，不会阻塞等待</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> E <span class="title">poll</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> xfer(<span class="keyword">null</span>, <span class="keyword">false</span>, NOW, <span class="number">0</span>);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * consumer,阻塞等待直到队列有元素(producer)可取</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> E <span class="title">take</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">       E e = xfer(<span class="keyword">null</span>, <span class="keyword">false</span>, SYNC, <span class="number">0</span>);</span><br><span class="line">       <span class="keyword">if</span> (e != <span class="keyword">null</span>)</span><br><span class="line">           <span class="keyword">return</span> e;</span><br><span class="line">       Thread.interrupted();</span><br><span class="line">       <span class="keyword">throw</span> <span class="keyword">new</span> InterruptedException();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 队列中是否有等待的consuemr</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">hasWaitingConsumer</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> firstOfMode(<span class="keyword">false</span>) != <span class="keyword">null</span>;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 队列中等待的consumer总数</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getWaitingConsumerCount</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> countOfMode(<span class="keyword">false</span>);</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<p>以上是主要我们要分析的行为，可以看见，出来 <code>hasWaitingConsumer</code> 和 <code>getWaitingConsumerCount</code> ，其他对队列操作元素的方法，都是通过xfer方法实现的。<br>先看 <code>hasWaitingConsumer</code> 和 <code>getWaitingConsumerCount</code> 。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">hasWaitingConsumer</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> firstOfMode(<span class="keyword">false</span>) != <span class="keyword">null</span>;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * Returns the first unmatched node of the given mode, or null if</span></span><br><span class="line"><span class="comment">    * none.  Used by methods isEmpty, hasWaitingConsumer.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">private</span> Node <span class="title">firstOfMode</span><span class="params">(<span class="keyword">boolean</span> isData)</span> </span>&#123;</span><br><span class="line">       <span class="keyword">for</span> (Node p = head; p != <span class="keyword">null</span>; p = succ(p)) &#123;</span><br><span class="line">           <span class="comment">// p.isMatched:</span></span><br><span class="line">           <span class="comment">// return (item == this) || ((x == null) == isData);</span></span><br><span class="line">           <span class="comment">// item == this 表示手动取消</span></span><br><span class="line">           <span class="comment">// ((x == null) == isData) 表示已匹配</span></span><br><span class="line">           <span class="keyword">if</span> (!p.isMatched())</span><br><span class="line">               <span class="comment">// 注意，队列里，未匹配的所有节点一定都是同一种类型的节点</span></span><br><span class="line">               <span class="comment">// p是队列中第一个未匹配的节点</span></span><br><span class="line">               <span class="comment">// 无非分两种情况分析：isData为true 和false</span></span><br><span class="line">               <span class="comment">// 1.true 如果p.isData == isData ，那么p为producer，那么返回当前节点，否则返回null。</span></span><br><span class="line">               <span class="comment">// 2.false 如果p.isData == isData,那么p为consumer....</span></span><br><span class="line">               <span class="keyword">return</span> (p.isData == isData) ? p : <span class="keyword">null</span>;</span><br><span class="line">       &#125;</span><br><span class="line">       <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * Returns the successor of p, or the head node if p.next has been</span></span><br><span class="line"><span class="comment">    * linked to self, which will only be true if traversing with a</span></span><br><span class="line"><span class="comment">    * stale pointer that is now off the list.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">final</span> Node <span class="title">succ</span><span class="params">(Node p)</span> </span>&#123;</span><br><span class="line">       Node next = p.next;</span><br><span class="line">       <span class="keyword">return</span> (p == next) ? head : next;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getWaitingConsumerCount</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> countOfMode(<span class="keyword">false</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Traverses and counts unmatched nodes of the given mode.</span></span><br><span class="line"><span class="comment"> * Used by methods size and getWaitingConsumerCount.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">countOfMode</span><span class="params">(<span class="keyword">boolean</span> data)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> count = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (Node p = head; p != <span class="keyword">null</span>; ) &#123;</span><br><span class="line">        <span class="comment">// p.isMatched:</span></span><br><span class="line">        <span class="comment">// return (item == this) || ((x == null) == isData);</span></span><br><span class="line">        <span class="comment">// item == this 表示手动取消</span></span><br><span class="line">        <span class="comment">// ((x == null) == isData) 表示已匹配</span></span><br><span class="line">        <span class="keyword">if</span> (!p.isMatched()) &#123;</span><br><span class="line">            <span class="comment">// 如果不等，那么后面的节点就不能有p.isData类型的节点了。</span></span><br><span class="line">            <span class="keyword">if</span> (p.isData != data)</span><br><span class="line">                <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">if</span> (++count == Integer.MAX_VALUE) <span class="comment">// saturated</span></span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        Node n = p.next;</span><br><span class="line">        <span class="keyword">if</span> (n != p)</span><br><span class="line">            p = n;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            count = <span class="number">0</span>;</span><br><span class="line">            p = head;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> count;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上两个方法还是挺清晰的，主要是要注意一个地方，就是第一个未匹配节点的类型，决定了后边未匹配节点的类型。<br>接下来看看 <code>xfer</code> 方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> E <span class="title">xfer</span><span class="params">(E e, <span class="keyword">boolean</span> haveData, <span class="keyword">int</span> how, <span class="keyword">long</span> nanos)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 不允许，说自己有货，口袋确实空的，这谁都顶不住的</span></span><br><span class="line">    <span class="keyword">if</span> (haveData &amp;&amp; (e == <span class="keyword">null</span>))</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">    Node s = <span class="keyword">null</span>;                        <span class="comment">// the node to append, if needed</span></span><br><span class="line"></span><br><span class="line">    retry:</span><br><span class="line">    <span class="keyword">for</span> (; ; ) &#123;                            <span class="comment">// restart on append race</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (Node h = head, p = h; p != <span class="keyword">null</span>; ) &#123; <span class="comment">// find &amp; match first node</span></span><br><span class="line">            <span class="keyword">boolean</span> isData = p.isData;</span><br><span class="line">            Object item = p.item;</span><br><span class="line">            <span class="comment">// 未匹配过</span></span><br><span class="line">            <span class="comment">// 如果p.item == p || (p.item == null) == p.isData 则已匹配 p.item == p cancel的情况</span></span><br><span class="line">            <span class="comment">// match consumer:p.item -&gt; itself producer:p.item-&gt;null</span></span><br><span class="line">            <span class="keyword">if</span> (item != p &amp;&amp; (item != <span class="keyword">null</span>) == isData) &#123; <span class="comment">// unmatched</span></span><br><span class="line">                <span class="comment">// 同类型,则break，在下一个循环里进行入队操作</span></span><br><span class="line">                <span class="keyword">if</span> (isData == haveData)   <span class="comment">// can't match</span></span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                <span class="comment">// match 过程:</span></span><br><span class="line">                <span class="comment">// consumer:p.item -&gt; data; producer:p.item -&gt; null</span></span><br><span class="line">                <span class="comment">// 试图匹配，item-&gt;e</span></span><br><span class="line">                <span class="keyword">if</span> (p.casItem(item, e)) &#123; <span class="comment">// match</span></span><br><span class="line">                    <span class="keyword">for</span> (Node q = p; q != h; ) &#123;</span><br><span class="line">                        Node n = q.next;  <span class="comment">// update by 2 unless singleton</span></span><br><span class="line">                        <span class="comment">// 移动head，如果q.next == null 则head-&gt;q，否则head-&gt;n</span></span><br><span class="line">                        <span class="keyword">if</span> (head == h &amp;&amp; casHead(h, n == <span class="keyword">null</span> ? q : n)) &#123;</span><br><span class="line">                            <span class="comment">// 更新head成功，将其next指针指向自己，以作清理</span></span><br><span class="line">                            h.forgetNext();</span><br><span class="line">                            <span class="keyword">break</span>;</span><br><span class="line">                        &#125;                 <span class="comment">// advance and retry</span></span><br><span class="line">                        <span class="comment">// 失败：1.head改变；2.cas竞争失败。总之就是有其他线程已经移动了head</span></span><br><span class="line"></span><br><span class="line">                        <span class="keyword">if</span> ((h = head) == <span class="keyword">null</span> ||</span><br><span class="line">                                <span class="comment">// 即 slack &gt;= 2,需要重试，以调整slack的值在[0,2)范围内</span></span><br><span class="line">                                (q = h.next) == <span class="keyword">null</span> || !q.isMatched())</span><br><span class="line">                            <span class="keyword">break</span>;        <span class="comment">// unless slack &lt; 2</span></span><br><span class="line">                    &#125;</span><br><span class="line">                    LockSupport.unpark(p.waiter);</span><br><span class="line">                    <span class="keyword">return</span> LinkedTransferQueue.&lt;E&gt;cast(item);</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="comment">// 失败了，已经有其他线程捷足先登，重试</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// 前边都是匹配过的节点，接着往后找</span></span><br><span class="line">            Node n = p.next;</span><br><span class="line">            p = (p != n) ? n : (h = head); <span class="comment">// Use head if p offlist</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 当how == NOW时，匹配失败立即返回，不会入队</span></span><br><span class="line">        <span class="keyword">if</span> (how != NOW) &#123;                 <span class="comment">// No matches available</span></span><br><span class="line">            <span class="keyword">if</span> (s == <span class="keyword">null</span>)</span><br><span class="line">                s = <span class="keyword">new</span> Node(e, haveData);</span><br><span class="line">            Node pred = tryAppend(s, haveData);</span><br><span class="line">            <span class="comment">// 当pred == null时，表示当前队列的"分割线"后节点的mode，已经时过境迁了。</span></span><br><span class="line">            <span class="keyword">if</span> (pred == <span class="keyword">null</span>)</span><br><span class="line">                <span class="keyword">continue</span> retry;           <span class="comment">// lost race vs opposite mode</span></span><br><span class="line">            <span class="comment">// how != ASYNC  需要阻塞等待</span></span><br><span class="line">            <span class="keyword">if</span> (how != ASYNC)</span><br><span class="line">                <span class="keyword">return</span> awaitMatch(s, pred, e, (how == TIMED), nanos);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> e; <span class="comment">// not waiting</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> Node <span class="title">tryAppend</span><span class="params">(Node s, <span class="keyword">boolean</span> haveData)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (Node t = tail, p = t; ; ) &#123;        <span class="comment">// move p to last node and append</span></span><br><span class="line">        Node n, u;                        <span class="comment">// temps for reads of next &amp; tail</span></span><br><span class="line">        <span class="keyword">if</span> (p == <span class="keyword">null</span> &amp;&amp; (p = head) == <span class="keyword">null</span>) &#123;  <span class="comment">// 队列为空</span></span><br><span class="line">            <span class="comment">// head并不需要dummy node</span></span><br><span class="line">            <span class="keyword">if</span> (casHead(<span class="keyword">null</span>, s))</span><br><span class="line">                <span class="keyword">return</span> s;                 <span class="comment">// initialize</span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (p.cannotPrecede(haveData))</span><br><span class="line">            <span class="comment">// haveData mode的节点s并不能成为p的后继</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;                  <span class="comment">// lost race vs opposite mode</span></span><br><span class="line">        <span class="comment">// tail并不是"tail",继续向后</span></span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> ((n = p.next) != <span class="keyword">null</span>)    <span class="comment">// not last; keep traversing</span></span><br><span class="line">            p = p != t &amp;&amp; t != (u = tail) ? (t = u) : <span class="comment">// stale tail</span></span><br><span class="line">                    (p != n) ? n : <span class="keyword">null</span>;      <span class="comment">// restart if off list</span></span><br><span class="line">        <span class="comment">// cas失败，已经有其他线程已经先行cas成功</span></span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (!p.casNext(<span class="keyword">null</span>, s))</span><br><span class="line">            p = p.next;                   <span class="comment">// re-read on CAS failure</span></span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// tail后还有其他节点</span></span><br><span class="line">            <span class="keyword">if</span> (p != t) &#123;                 <span class="comment">// update if slack now &gt;= 2</span></span><br><span class="line">                <span class="keyword">while</span> ((tail != t || !casTail(t, s)) &amp;&amp;   <span class="comment">// tail已经改变或者移动tail失败</span></span><br><span class="line">                        (t = tail) != <span class="keyword">null</span> &amp;&amp;</span><br><span class="line">                        <span class="comment">// (s = t.next) != null &amp;&amp; (s = s.next) != null means slack &gt;= 2</span></span><br><span class="line">                        (s = t.next) != <span class="keyword">null</span> &amp;&amp; <span class="comment">// advance and retry</span></span><br><span class="line">                        (s = s.next) != <span class="keyword">null</span> &amp;&amp; s != t);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> p;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> E <span class="title">awaitMatch</span><span class="params">(Node s, Node pred, E e, <span class="keyword">boolean</span> timed, <span class="keyword">long</span> nanos)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// how = timed == false ? SYNC : TIMED</span></span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> deadline = timed ? System.nanoTime() + nanos : <span class="number">0L</span>;</span><br><span class="line">    Thread w = Thread.currentThread();</span><br><span class="line">    <span class="keyword">int</span> spins = -<span class="number">1</span>; <span class="comment">// initialized after first item and cancel checks</span></span><br><span class="line">    java.util.concurrent.ThreadLocalRandom randomYields = <span class="keyword">null</span>; <span class="comment">// bound if needed</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (; ; ) &#123;</span><br><span class="line">        Object item = s.item;</span><br><span class="line">        <span class="keyword">if</span> (item != e) &#123;                  <span class="comment">// matched</span></span><br><span class="line">            <span class="comment">// assert item != s;</span></span><br><span class="line">            s.forgetContents();           <span class="comment">// avoid garbage</span></span><br><span class="line">            <span class="comment">// 匹配完成</span></span><br><span class="line">            <span class="keyword">return</span> LinkedTransferQueue.&lt;E&gt;cast(item);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> ((w.isInterrupted() || (timed &amp;&amp; nanos &lt;= <span class="number">0</span>)) &amp;&amp;</span><br><span class="line">                s.casItem(e, s)) &#123;        <span class="comment">// cancel</span></span><br><span class="line">            <span class="comment">// 这里 mark sweep</span></span><br><span class="line">            unsplice(pred, s);</span><br><span class="line">            <span class="keyword">return</span> e;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 自旋</span></span><br><span class="line">        <span class="keyword">if</span> (spins &lt; <span class="number">0</span>) &#123;                  <span class="comment">// establish spins at/near front</span></span><br><span class="line">            <span class="keyword">if</span> ((spins = spinsFor(pred, s.isData)) &gt; <span class="number">0</span>)</span><br><span class="line">                randomYields = ThreadLocalRandom.current();</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (spins &gt; <span class="number">0</span>) &#123;             <span class="comment">// spin</span></span><br><span class="line">            --spins;</span><br><span class="line">            <span class="keyword">if</span> (randomYields.nextInt(CHAINED_SPINS) == <span class="number">0</span>)</span><br><span class="line">                Thread.yield();           <span class="comment">// occasionally yield</span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (s.waiter == <span class="keyword">null</span>) &#123;</span><br><span class="line">            s.waiter = w;                 <span class="comment">// request unpark then recheck</span></span><br><span class="line">        <span class="comment">// 阻塞等待，等待唤醒  </span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (timed) &#123;</span><br><span class="line">            nanos = deadline - System.nanoTime();</span><br><span class="line">            <span class="keyword">if</span> (nanos &gt; <span class="number">0L</span>)</span><br><span class="line">                LockSupport.parkNanos(<span class="keyword">this</span>, nanos);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            LockSupport.park(<span class="keyword">this</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结合xfer注释，对照着前边的几个操作队列元素的方法，多理解即便，效果更佳。<br><a name="n8Lgq"></a></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
+<li>内部采用了Dual Stack With Slack的结构，slack根据实践数据采用了slack=2</li>
+<li>操作队列的元素的各个方法通过xfer方法实现，具体是根据不同的how参数来区分不同场景</li>
+<li>对于一个data节点，匹配过程体现在item上就是:non-null -&gt; null，反过来，对于一个request节点，匹配过程就是：null-&gt;non null。</li>
+<li>一个可阻塞的节点入队时，如果队列中有等待可匹配的节点，则匹配并移除该节点，否则，入队自旋等待或阻塞等待直至匹配成功或唤醒。</li>
+</ul>
+
+      
+    </div>
+
+    
+      
+
+
+    
+
+    
+    
+    
+
+    
+      <div>
+        <div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------The End-------------</div>
+    
+</div>
+      </div>
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/JDK/" rel="tag"># JDK</a>
+          
+            <a href="/tags/源码分析/" rel="tag"># 源码分析</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/157f68af.html" rel="next" title="JDK源码阅读之SynchronousQueue">
+                <i class="fa fa-chevron-left"></i> JDK源码阅读之SynchronousQueue
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/dxf.png" alt="邓旭峰">
+            
+              <p class="site-author-name" itemprop="name">邓旭峰</p>
+              <p class="site-description motion-element" itemprop="description">团结友爱互助</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">15</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">5</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0Rlbm5pczgyNzQ=" title="GitHub &rarr; https://github.com/Dennis8274"><i class="fa fa-fw fa-github"></i>GitHub</span>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <span class="exturl" data-url="bWFpbHRvOmRlbm5pc2R4ZkBnbWFpbC5jb20=" title="E-Mail &rarr; mailto:dennisdxf@gmail.com"><i class="fa fa-fw fa-envelope"></i>E-Mail</span>
+                </span>
+              
+            </div>
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li></ol><li class="nav-item nav-level-1"><a class="nav-link" href="#概述"><span class="nav-number"></span> <span class="nav-text">概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#源码阅读"><span class="nav-number"></span> <span class="nav-text">源码阅读</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#内部变量"><span class="nav-number">1.</span> <span class="nav-text">内部变量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#行为分析"><span class="nav-number">2.</span> <span class="nav-text">行为分析</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#总结"><span class="nav-number"></span> <span class="nav-text">总结</span></a></li></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">邓旭峰</span>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/jquery/2.1.3/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/velocity/1.2.3/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/velocity/1.2.3/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=6.7.0"></script>
+
+  <script src="/js/src/motion.js?v=6.7.0"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=6.7.0"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=6.7.0"></script>
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=6.7.0"></script>
+<script src="/js/src/post-details.js?v=6.7.0"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=6.7.0"></script>
+
+
+
+  
+  
+
+<script src="//cdn1.lncld.net/static/js/3.11.1/av-min.js"></script>
+
+
+
+<script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: true,
+    appId: 'TTQ8VRPngUbtEIBsm3hiuo73-gzGzoHsz',
+    appKey: 'eRXYHfCrk7gPGvyzHYa8eqbz',
+    placeholder: '长得好看的人，说话都好听。',
+    avatar: 'wavatar',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('5');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';        
+      }
+      else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+      }
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/exturl.js?v=6.7.0"></script>
+
+
+  
+
+  
+  <style>
+    .copy-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #333;
+      white-space: nowrap;
+      vertical-align: middle;
+      cursor: pointer;
+      background-color: #eee;
+      background-image: linear-gradient(#fcfcfc, #eee);
+      border: 1px solid #d5d5d5;
+      border-radius: 3px;
+      user-select: none;
+      outline: 0;
+    }
+
+    .highlight-wrap .copy-btn {
+      transition: opacity .3s ease-in-out;
+      opacity: 0;
+      padding: 2px 6px;
+      position: absolute;
+      right: 4px;
+      top: 8px;
+    }
+
+    .highlight-wrap:hover .copy-btn,
+    .highlight-wrap .copy-btn:focus {
+      opacity: 1
+    }
+
+    .highlight-wrap {
+      position: relative;
+    }
+  </style>
+  <script>
+    $('.highlight').each(function(i, e) {
+      var $wrap = $('<div>').addClass('highlight-wrap');
+      $(e).after($wrap);
+      $wrap.append($('<button>').addClass('copy-btn').append('复制').on('click', function(e) {
+        var code = $(this).parent().find('.code').find('.line').map(function(i, e) {
+          return $(e).text();
+        }).toArray().join('\n');
+        var ta = document.createElement('textarea');
+        var range = document.createRange(); //For Chrome
+        var sel = window.getSelection(); //For Chrome
+        var yPosition = window.pageYOffset || document.documentElement.scrollTop;
+        ta.style.top = yPosition + 'px'; //Prevent page scroll
+        ta.style.position = 'absolute';
+        ta.style.opacity = '0';
+        ta.value = code;
+        ta.textContent = code; //For FireFox
+        ta.contentEditable = true;
+        ta.readOnly = false;
+        document.body.appendChild(ta);
+        range.selectNode(ta);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        ta.setSelectionRange(0, code.length);
+        var result = document.execCommand('copy');
+        
+          if (result) $(this).text('复制成功');
+          else $(this).text('复制失败');
+        
+        ta.blur(); //For iOS
+        $(this).blur();
+      })).on('mouseleave', function(e) {
+        var $b = $(this).find('.copy-btn');
+        setTimeout(function() {
+          $b.text('复制');
+        }, 300);
+      }).append(e);
+    })
+  </script>
+
+
+  
+
+</body>
+</html>
