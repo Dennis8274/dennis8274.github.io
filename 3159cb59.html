@@ -15,7 +15,7 @@
 
 
 <html class="theme-next pisces use-motion" lang="zh-CN">
-<head><meta name="generator" content="Hexo 3.8.0">
+<head><meta name="generator" content="Hexo 3.9.0">
   <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
@@ -122,7 +122,7 @@
 <meta property="og:description" content="前言 QMQ是一款去哪儿网内部使用多年的mq。不久前(大概1-2年前)已在携程投入生产大规模使用，年前这款mq也开源了出来。关于QMQ的相关设计文章可以看这里。在这里，我假设你已经对QMQ前世今生以及其设计和实现等背景知识已经有了一个较为全面的认识。   我的阅读姿势对一款开源产品愈来愈感兴趣，想要了解一款开源产品更多的技术细节的时候，最好的方式自然是去阅读她的源码。那么一个正确阅读开源软件源码">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/png/261134/1550935854945-5930d1df-0316-4e07-8d51-4f794093200f.png#align=left&display=inline&height=746&name=image.png&originHeight=746&originWidth=1366&size=265433&status=done&width=1366">
-<meta property="og:updated_time" content="2019-06-14T10:50:57.889Z">
+<meta property="og:updated_time" content="2019-06-25T03:52:37.344Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="QMQ源码分析之delay-server篇【一】">
 <meta name="twitter:description" content="前言 QMQ是一款去哪儿网内部使用多年的mq。不久前(大概1-2年前)已在携程投入生产大规模使用，年前这款mq也开源了出来。关于QMQ的相关设计文章可以看这里。在这里，我假设你已经对QMQ前世今生以及其设计和实现等背景知识已经有了一个较为全面的认识。   我的阅读姿势对一款开源产品愈来愈感兴趣，想要了解一款开源产品更多的技术细节的时候，最好的方式自然是去阅读她的源码。那么一个正确阅读开源软件源码">
@@ -323,7 +323,7 @@
       
     
 
-    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">15</span></a>
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">16</span></a>
 
   </li>
 
@@ -536,7 +536,7 @@
 <h4 id="存储"><a href="#存储" class="headerlink" title="存储"></a>存储</h4><p>假如让我们来设计实现一个delay-server，存储部分我们需要解决什么问题？我觉得主要是要解决到期投递的<code>到期</code>问题。我们可以用传统db做，但是这个性能肯定是上不去的。我们也可以用基于LSM树的RocksDB。或者，干脆直接用文件存储。QMQ是用文件存储的。而用文件存储是怎么解决<code>到期</code>问题的呢？delay-server接收到延迟消息，就将消息append到message_log中，然后再通过回放这个message_log得到schedule_log，此外还有一个dispatch _log用于记录投递记录。QMQ还有个跟投递相关的存储设计，即两层HashWheel。第一层位于磁盘上，例如，以一个小时一个刻度一个文件，我们叫delay_message_segment，如延迟时间为2019年02月23日 19:00 至2019年02月23日 20:00为延迟消息将被存储在2019022319。并且这个刻度是可以配置调整的。第二层HashWheel位于内存中。也是以一个时间为刻度，比如500ms，加载进内存中的延迟消息文件会根据延迟时间hash到一个HashWheel中，第二层的wheel涉及更多的是下一小节的<strong>投递</strong>。貌似存储到这里就结束了，然而还有一个问题，目前当投递的时候我们需要将一个delay_message_segment加载进内存中，而假如我们提前一个刻度加载进一个delay_message_segment到内存中的hashwheel，比如在2019年02月23日 18:00加载2019022319这个segment文件，那么一个hashwheel中就会存在两个delay_message_segment，而这个时候所占内存是非常大的，所以这是完全不可接收的。所以，QMQ引入了一个数据结构，叫schedule_index，即消息索引，存储的内容为消息的索引，我们加载到内存的是这个schedule_index，在真正投递的时候再根据索引查到消息体进行投递。<br><a name="31cb9169"></a></p>
 <h4 id="投递"><a href="#投递" class="headerlink" title="投递"></a>投递</h4><p>解决了存储，那么到期的延迟消息如何投递呢？如在上一小节<strong>存储</strong>中所提到的，内存中的hashwheel会提前一段时间加载delay_schedule_index，这个时间自然也是可以配置的。而在hashwheel中，默认每500ms会tick一次，这个500ms也是可以根据用户需求配置的。而在投递的时候，QMQ根据实时broker进行分组多线程投递，如果某一broker离线不可用，导致投递失败，delay-server会将延迟消息投递在其他<code>存活</code>的实时broker。其实这里对于实时的broker应该有一个关于投递消息权重的，现在delay-server没有考虑到这一点，不过我看已经有一个pr解决了这个问题，只是官方还没有时间看这个问题。除此之外，QMQ还考虑到了要是当前延迟消息所属的delay_segment已经加载到内存中的hashwheel了，这个时候消息应该是直接投递或也应加载到hashwheel中的。这里需要考虑的情况还是比较多的，比如考虑delay_segment正在加载、已经加载、加载完成等情况，对于这种情况，QMQ用了两个cursor来表示hashwheel加载到哪个delay_segment以及加载到对应segment的什么offset了，这里还是挺复杂的，这里的代码逻辑在<code>WheelTickManager</code>这个类。</p>
 <hr>
-<p>我们先来看一看整体结构<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550935854945-5930d1df-0316-4e07-8d51-4f794093200f.png#align=left&amp;display=inline&amp;height=746&amp;name=image.png&amp;originHeight=746&amp;originWidth=1366&amp;size=265433&amp;status=done&amp;width=1366" alt="image.png"><br>以功能划分的包结构，算是比较清晰。cleaner是日志清理工作相关，receiver是接收消息相关，sender是投递相关，store是存储相关，sync是同步备份相关，wheel则是hashwheel相关。</p>
+<p>我们先来看一看整体结构<br><img src="https://cdn.nlark.com/yuque/0/2019/png/261134/1550935854945-5930d1df-0316-4e07-8d51-4f794093200f.png#align=left&display=inline&height=746&name=image.png&originHeight=746&originWidth=1366&size=265433&status=done&width=1366" alt="image.png"><br>以功能划分的包结构，算是比较清晰。cleaner是日志清理工作相关，receiver是接收消息相关，sender是投递相关，store是存储相关，sync是同步备份相关，wheel则是hashwheel相关。</p>
 <p><strong>关于QMQ源码阅读前的准备工作就先做到这里，下一篇我们就深入源码分析以上提到的各个细节。</strong></p>
 
       
@@ -678,7 +678,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">15</span>
+                    <span class="site-state-item-count">16</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
