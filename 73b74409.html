@@ -123,7 +123,7 @@
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1561434132526-0c31a6ef-0d33-419e-bacd-403b54b80f80.jpeg#align=left&display=inline&height=409&name=big.jpg&originHeight=409&originWidth=654&size=13431&status=done&width=654">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1561434138348-6cd93259-1818-4a25-a526-a0b4b8b8d195.jpeg#align=left&display=inline&height=399&name=small.jpg&originHeight=399&originWidth=658&size=13470&status=done&width=658">
-<meta property="og:updated_time" content="2019-06-25T03:59:03.910Z">
+<meta property="og:updated_time" content="2019-06-26T12:05:26.008Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JDK源码阅读之PriorityBlockingQueue">
 <meta name="twitter:description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  PriorityB">
@@ -534,8 +534,8 @@
 <h3 id="内部变量"><a href="#内部变量" class="headerlink" title="内部变量"></a>内部变量</h3><ul>
 <li>private static final int DEFAULT_INITIAL_CAPACITY = 11;   // 默认数组大小</li>
 <li>private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;  // 数组支持最大大小</li>
-<li>private transient Object[] queue; // 存储元素底层数组，堆的形式</li>
-<li>private transient int size;   // 队列中元素书数量</li>
+<li>private transient Object[] queue; // 存储元素底层数组，以堆的形式</li>
+<li>private transient int size;   // 队列中元素数量</li>
 <li>private transient Comparator&lt;? super E&gt; comparator;   // 用于区分优先级的比较接口</li>
 <li>private final ReentrantLock lock; // 保证线程安全的锁</li>
 <li>private final Condition notEmpty; // lock.condition</li>
