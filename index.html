@@ -855,7 +855,7 @@ An unbounded {*@link *java.util.concurrent.TransferQueue} based on linked nodes.
             <p>
               
 写在前面
-根据源码总的描述，SynchronousQueue是一个阻塞队列，所有的入队出队操作都是阻塞的。根据作者的描述，这个工具的定位是在线程间同步对象，以达到在线程间传递一些信息、事件、或者任务的目的(_They are well suited for handoff designs, in 
+根据源码总的描述，SynchronousQueue是一个阻塞队列，所有的入队出队操作都是阻塞的。根据作者的描述，这个工具的定位是在线程间同步对象，以达到在线程间传递一些信息、事件、或者任务的目的(They are well suited for handoff designs, in w
               ...
             </p>
           <!--noindex-->
@@ -1032,7 +1032,8 @@ An unbounded {*@link *java.util.concurrent.TransferQueue} based on linked nodes.
 写在前面
 作者Doug Lea_如此描述这个类：_A capability-based lock with three modes for controlling read/write access.这是一个有三种模式的锁。具体哪三种模式，请看源码中的示例。
 
-/** * 三种模式用法 * rea
+源码分析自 JDK 1.8.171
+
               ...
             </p>
           <!--noindex-->

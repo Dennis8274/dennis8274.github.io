@@ -113,20 +113,20 @@
 
 
 
-  <meta name="description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  PriorityB">
+  <meta name="description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  源码分析自 JDK">
 <meta name="keywords" content="JDK,源码分析">
 <meta property="og:type" content="article">
 <meta property="og:title" content="JDK源码阅读之PriorityBlockingQueue">
 <meta property="og:url" content="https://blog.dengxf.cn/73b74409.html">
 <meta property="og:site_name" content="young driver">
-<meta property="og:description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  PriorityB">
+<meta property="og:description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  源码分析自 JDK">
 <meta property="og:locale" content="zh-CN">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1561434132526-0c31a6ef-0d33-419e-bacd-403b54b80f80.jpeg#align=left&display=inline&height=409&name=big.jpg&originHeight=409&originWidth=654&size=13431&status=done&width=654">
 <meta property="og:image" content="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1561434138348-6cd93259-1818-4a25-a526-a0b4b8b8d195.jpeg#align=left&display=inline&height=399&name=small.jpg&originHeight=399&originWidth=658&size=13470&status=done&width=658">
-<meta property="og:updated_time" content="2019-06-27T09:56:13.248Z">
+<meta property="og:updated_time" content="2019-06-27T10:01:02.202Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JDK源码阅读之PriorityBlockingQueue">
-<meta name="twitter:description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  PriorityB">
+<meta name="twitter:description" content="写在前面 An unbounded {@linkpain java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link PriorityQueue} and supplies blocking retrieval operations.  源码分析自 JDK">
 <meta name="twitter:image" content="https://cdn.nlark.com/yuque/0/2019/jpeg/261134/1561434132526-0c31a6ef-0d33-419e-bacd-403b54b80f80.jpeg#align=left&display=inline&height=409&name=big.jpg&originHeight=409&originWidth=654&size=13431&status=done&width=654">
 
 
@@ -524,7 +524,7 @@
 <h3 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h3><blockquote>
 <p>An unbounded {@linkpain<a href> </a>java.util.concurrent.BlockingQueue blocking queue} that uses the same ordering rules as class {@link<a href> </a>PriorityQueue} and supplies blocking retrieval operations.</p>
 </blockquote>
-<p>PriorityBlockingQueue,无界优先级阻塞队列。队列中的优先级根据提供的独立的一个 <code>Comparator</code> 接口或者实现 <code>Comparable</code> 接口的队列元素决定。</p>
+<p><strong>源码分析自 JDK 1.8.171</strong><br>PriorityBlockingQueue,无界优先级阻塞队列。队列中的优先级根据提供的独立的一个 <code>Comparator</code> 接口或者实现 <code>Comparable</code> 接口的队列元素决定。</p>
 <p><a name="a4d3b02a"></a></p>
 <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>优先级队列是基于堆(小顶堆)是实现的。线程安全性由内部声明的一个ReentrantLock保证，即所有的公共操作都是在锁下完成。</p>
 <p><a name="8b1fa850"></a></p>
